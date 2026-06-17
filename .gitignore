@@ -1,0 +1,24 @@
+# ─── Secrets — NEVER commit ───
+.env
+.env.*
+*.env
+wallets.env
+*-keys.txt
+*mnemonic*
+*secret*
+*.pem
+*.key
+
+# ─── Dependencies / build artifacts ───
+node_modules/
+dist/
+.next/
+*.log
+
+# ─── OS / editor cruft ───
+.DS_Store
+Thumbs.db
+_preview.png
+_newbody.html
+.vscode/
+.idea/

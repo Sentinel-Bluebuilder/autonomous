@@ -1,0 +1,2238 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="matrix">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Autonomous — Fully Self-Funded Private Internet for AI Agents</title>
+<meta name="description" content="An AI agent holds its own P2P, picks any Sentinel node, and pays it directly per-GB. No operator, no middleman, no x402 server. Fully autonomous private internet on Sentinel's decentralized network.">
+
+<!-- Agent discovery: machine-readable AI summary -->
+<link rel="alternate" type="text/plain" href="https://autonomous.sentinel.co/llms.txt" title="Autonomous flow summary for LLMs (llmstxt.org)">
+<meta name="autonomous-llms" content="https://autonomous.sentinel.co/llms.txt">
+<meta name="x402-managed" content="https://x402.sentinel.co — the managed path (pay USDC on Base, operator provisions)">
+
+<!-- JSON-LD: embed the full autonomous flow inline so a single HTML fetch is sufficient.
+     Sources for the network facts below: sentinel.co, docs.sentinel.co/p2p-coin,
+     and the verified E2E in this repo (session 45433200, 40.19 P2P/GB, V2Ray). -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "HowTo",
+  "name": "Autonomous Sentinel dVPN connection for AI agents",
+  "description": "An AI agent funds itself with P2P, picks any node on Sentinel's decentralized network, pays the node directly per-GB, and handshakes peer-to-peer. The x402 server is never contacted.",
+  "totalTime": "PT2M",
+  "tool": [
+    { "@type": "HowToTool", "name": "blue-js-sdk/ai-path (connect, disconnect, getBalance, createWallet)" },
+    { "@type": "HowToTool", "name": "P2P balance in the agent's own Sentinel wallet" }
+  ],
+  "step": [
+    { "@type": "HowToStep", "name": "Fund with P2P",       "text": "Acquire P2P (denom udvpn, 1 P2P = 1,000,000 udvpn) into the agent's own wallet — e.g. buy P2P on an exchange and withdraw to the Sentinel address." },
+    { "@type": "HowToStep", "name": "Own wallet, own keys", "text": "createWallet() from blue-js-sdk/ai-path returns { address, mnemonic }. The mnemonic never leaves the agent." },
+    { "@type": "HowToStep", "name": "Pick any node",        "text": "Filter the on-chain node registry by country/price/protocol, or pass country and let the SDK auto-select." },
+    { "@type": "HowToStep", "name": "Pay node + handshake", "text": "connect({ mnemonic, country, protocol, gigabytes }) pays the node directly per-GB via MsgStartSession and brings up the WireGuard or V2Ray tunnel." }
+  ],
+  "autonomous": {
+    "model": "self-funded, pay-as-you-go, direct to the node",
+    "operator": "none — the x402 server plays no part",
+    "packages": { "sentinel": "blue-js-sdk/ai-path" },
+    "connect": "connect({ mnemonic, country?, protocol: 'v2ray'|'wireguard', gigabytes }) → { sessionId, protocol, nodeAddress, ip, socksPort }",
+    "getBalance": "getBalance(mnemonic) → { address, udvpn, p2p, sufficient }",
+    "disconnect": "disconnect() — soft: session preserved on-chain, unused GB stays available",
+    "v2rayCaveat": "V2Ray routes through a userspace SOCKS5 proxy, NOT the whole system. A plain fetch() on the OS default route still shows the real IP — that is expected, not a failure. Use vpn.socksPort with a SOCKS agent, or protocol: 'wireguard' for transparent system-wide routing.",
+    "sentinel": {
+      "chain": "sentinelhub-2",
+      "addressPrefix": "sent",
+      "coinType": 118,
+      "denom": "udvpn",
+      "p2pPerCoin": 1000000,
+      "rpc": "https://rpc.sentinel.co:443",
+      "lcd": "https://lcd.sentinel.co",
+      "rpcFallbacks": ["https://rpc.sentinel.co:443", "https://sentinel-rpc.polkachu.com", "https://rpc.mathnodes.com", "https://sentinel-rpc.publicnode.com", "https://rpc.sentinel.quokkastake.io", "https://rpc.sentinel.suchnode.net:443"],
+      "lcdFallbacks": ["https://lcd.sentinel.co", "https://sentinel-api.polkachu.com", "https://api.sentinel.quokkastake.io", "https://sentinel-rest.publicnode.com", "https://api.sentinel.suchnode.net"],
+      "network": "1,500+ independent nodes across 70+ countries; on-chain node registry, no central servers",
+      "pricing": "Per-GB, paid directly to the node. Live network median ~40 P2P/GB, cheapest ~2 P2P/GB; protocol floor 100 udvpn/GB. Revenue split: 80% node host / 20% stakers.",
+      "platforms": "Connect step differs by OS; the chain payment is identical everywhere.",
+      "connectMacLinux": "Native CLI sentinel-dvpncli (go install github.com/sentinel-official/sentinel-dvpncli@latest, needs Go 1.24+). The CLI does NOT bundle a tunnel: it shells out to wg-quick (install wireguard-tools: apt/brew/pacman) for WireGuard nodes, or v2ray on PATH for V2Ray nodes. sudo is needed to bring a WireGuard interface up. Exception: Fedora (SELinux blocks VPNs).",
+      "connectWindows": "Zero-prereq path: pass protocol: 'v2ray' to connect() — no admin, no manual install. V2Ray is a userspace SOCKS5 proxy; connect() auto-downloads the v2ray binary to ~/.sentinel-sdk/bin on first use (no admin), covering ~70% of nodes. WireGuard nodes (the other ~30%, faster) need admin ONCE for the MSI install + tunnel service; the SDK checks admin BEFORE payment and refuses a WireGuard node when not elevated, so no funds are wasted.",
+      "walletCreate": "createWallet() from blue-js-sdk/ai-path → { address, mnemonic }"
+    },
+    "verifiedLive": { "sessionId": "45433200", "protocol": "v2ray", "paidP2PPerGB": 40.19, "gigabytes": 1, "exitIp": "104.252.19.187", "elapsedSeconds": 67, "network": "Sentinel mainnet" }
+  }
+}
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Funnel+Display:wght@300..800&family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet">
+<style>
+/* ─── Reset & Variables ─── */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  /* Plan Manager DNA reskinned for Matrix:
+     - Near-black canvas (PM #060608) tinted with the faintest electric blue
+     - Electric azure is the accent (Sentinel blue, phosphor-bright)
+     - Cards are glassy / translucent, mono everywhere code lives */
+  --bg: #02060a;
+  --bg-base: #02060a;
+  --bg-raised: rgba(8, 14, 18, 0.72);
+  --bg-code: #04090c;
+  --surface: rgba(10, 16, 22, 0.78);
+  --bg-card: rgba(10, 16, 22, 0.62);
+  --bg-card-solid: #070b10;
+  --bg-input: rgba(0, 170, 255, 0.04);
+
+  --border: rgba(0, 170, 255, 0.14);
+  --border-bright: rgba(0, 170, 255, 0.32);
+  --border-strong: rgba(0, 170, 255, 0.55);
+
+  --text: #d4f1ff;
+  --text-bright: #eaf9ff;
+  --text-muted: #6fb8cf;
+  --text-dim: #3f667a;
+
+  /* The matrix phosphor — primary brand replacement */
+  --accent: #00aaff;
+  --accent-bright: #5bcfff;
+  --accent-deep: #0088cc;
+  --accent-glow: rgba(0, 170, 255, 0.22);
+  --accent-subtle: rgba(0, 170, 255, 0.06);
+  --accent-dim: rgba(0, 170, 255, 0.10);
+
+  /* Secondary signal colors retuned for matrix palette */
+  --blue: #00aaff;
+  --blue-dim: rgba(0, 170, 255, 0.14);
+  --amber: #ffb547;
+  --amber-dim: rgba(255, 181, 71, 0.12);
+  --red: #ff5d6c;
+
+  --font-body: 'Lato', -apple-system, sans-serif;
+  --font-display: 'Funnel Display', 'Lato', -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --radius-sm: 5px;
+
+  --shadow-glow: 0 0 0 1px rgba(0, 170, 255, 0.16), 0 0 28px -10px rgba(0, 170, 255, 0.3);
+  --shadow-card: 0 1px 0 rgba(0, 170, 255, 0.05) inset, 0 20px 50px -28px rgba(0, 0, 0, 0.85);
+  --hairline: linear-gradient(90deg, transparent, rgba(0, 170, 255, 0.55), transparent);
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* Very faint scanlines — kept low so prose stays clean and readable. */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 170, 255, 0.03) 0px,
+    rgba(0, 170, 255, 0.03) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+  mix-blend-mode: overlay;
+  opacity: 0.1;
+}
+
+/* Faint vignette pulling the eye toward the center column */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background:
+    radial-gradient(ellipse at 50% -10%, rgba(0, 170, 255, 0.08), transparent 60%),
+    radial-gradient(ellipse at 50% 110%, rgba(0, 170, 255, 0.05), transparent 60%);
+}
+
+::selection { background: var(--accent); color: #00111a; }
+
+/* Sleek scrollbars + crisp keyboard focus */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 170, 255, 0.14);
+  border-radius: 5px;
+  border: 2px solid var(--bg);
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(0, 170, 255, 0.3); }
+
+:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+a { color: var(--accent); text-decoration: none; transition: color 0.18s; }
+a:hover { color: var(--accent-bright); }
+
+/* ─── Digital Rain (canvas) ─── */
+#rain {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.08;
+}
+
+/* ─── Layout ─── */
+.container { max-width: 880px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 3; }
+
+/* ─── Nav ─── */
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(2, 6, 10, 0.82);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+}
+
+nav::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: -1px;
+  height: 1px;
+  background: var(--hairline);
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+nav .inner {
+  max-width: 880px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+}
+
+nav .logo {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 17px;
+  color: var(--text-bright);
+  letter-spacing: 0.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+nav .logo .brand-mark {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 0 6px rgba(30, 136, 229, 0.45));
+}
+
+nav .logo .brand-mark img { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+nav .logo span { color: var(--accent); text-shadow: 0 0 12px rgba(0, 170, 255, 0.3); }
+
+/* ─── Logo / Brand-mark sizing ─── */
+.brand-mark-lg {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 8px var(--accent-glow));
+}
+
+/* Chain & OS logo SVGs share styling — phosphor-tinted, sit on dark cards */
+.chain-logo,
+.os-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  color: var(--accent-bright);
+  filter: drop-shadow(0 0 6px var(--accent-glow));
+}
+
+.chain-logo svg,
+.os-logo svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.chain-card .chain-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.chain-card .chain-logo {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+.chain-card .chain-head .chain-name {
+  margin-bottom: 0;
+}
+
+/* ─── OS support row ─── */
+.os-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 14px auto 6px;
+  align-items: stretch;
+  justify-content: center;
+}
+
+.os-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 14px;
+  height: 34px;
+  line-height: 1;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  letter-spacing: 0.4px;
+  transition: border-color .2s, color .2s, box-shadow .2s;
+}
+
+.os-chip:hover {
+  border-color: var(--border-bright);
+  box-shadow: 0 0 18px -6px var(--accent-glow);
+}
+
+.os-chip.live { color: var(--accent-bright); border-color: var(--border-bright); }
+.os-chip.live .os-logo { color: var(--accent-bright); }
+
+.os-chip.soon { color: var(--amber); border-color: rgba(255, 181, 71, 0.32); }
+.os-chip.soon .os-logo { color: var(--amber); filter: drop-shadow(0 0 6px rgba(255, 181, 71, 0.32)); }
+
+.os-chip.easy { color: var(--accent); border-color: rgba(0, 170, 255, 0.32); }
+.os-chip.easy .os-logo { color: var(--accent); filter: drop-shadow(0 0 6px rgba(0, 170, 255, 0.3)); }
+
+.os-chip .os-label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.os-chip .os-status {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  opacity: 0.7;
+  padding: 2px 6px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  line-height: 1;
+  position: relative;
+  top: -1px;
+}
+
+.os-chip .os-logo {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.os-chip .os-logo svg { width: 100%; height: 100%; display: block; }
+
+nav .links { display: flex; gap: 26px; }
+
+nav .links a {
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font-body);
+  color: var(--text-muted);
+  letter-spacing: 0.2px;
+  transition: color 0.18s;
+  position: relative;
+}
+
+nav .links a::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 100%; bottom: -6px;
+  height: 1px;
+  background: var(--accent);
+  transition: right 0.22s ease;
+}
+
+nav .links a:hover { color: var(--accent-bright); text-shadow: none; }
+nav .links a:hover::after { right: 0; }
+
+/* ─── Mobile nav toggle (hidden on desktop) ─── */
+.nav-toggle {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 40px;
+  height: 40px;
+  padding: 9px;
+  margin: 0;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color 0.18s, box-shadow 0.18s;
+}
+
+.nav-toggle:hover { border-color: var(--border-bright); box-shadow: 0 0 16px -6px var(--accent-glow); }
+
+.nav-toggle-bar {
+  display: block;
+  width: 100%;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent-bright);
+  box-shadow: 0 0 6px var(--accent-glow);
+  transition: transform 0.22s ease, opacity 0.18s ease;
+}
+
+.nav-toggle[aria-expanded="true"] .nav-toggle-bar:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.nav-toggle[aria-expanded="true"] .nav-toggle-bar:nth-child(2) { opacity: 0; }
+.nav-toggle[aria-expanded="true"] .nav-toggle-bar:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+@keyframes blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0.25; }
+}
+
+/* ─── Hero ─── */
+.hero {
+  min-height: calc(100vh - 56px);
+  padding: 36px 0 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+  position: relative;
+}
+
+/* Crisp blueprint grid fading out behind the hero */
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 14%;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(0, 170, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 170, 255, 0.05) 1px, transparent 1px);
+  background-size: 44px 44px;
+  -webkit-mask-image: radial-gradient(ellipse 75% 65% at 50% 0%, #000 25%, transparent 78%);
+  mask-image: radial-gradient(ellipse 75% 65% at 50% 0%, #000 25%, transparent 78%);
+}
+
+.hero .protocol-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 100px;
+  border: 1px solid var(--border-bright);
+  background: var(--accent-subtle);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-body);
+  color: var(--accent-bright);
+  letter-spacing: 1.6px;
+  margin-bottom: 20px;
+  text-transform: uppercase;
+  box-shadow: 0 0 16px -6px var(--accent-glow);
+}
+
+.hero .protocol-badge::before {
+  content: '';
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent), 0 0 16px var(--accent-glow);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.9); }
+}
+
+.hero h1 {
+  font-family: var(--font-display);
+  font-size: clamp(34px, 5vw, 50px);
+  font-weight: 800;
+  line-height: 1.02;
+  letter-spacing: -1.8px;
+  margin-bottom: 16px;
+  color: var(--text-bright);
+  text-wrap: balance;
+}
+
+.hero h1 .highlight {
+  color: var(--accent);
+  text-shadow: 0 0 18px rgba(0, 170, 255, 0.22);
+  position: relative;
+}
+
+.hero h1 .caret {
+  display: inline-block;
+  width: 0.5ch;
+  background: var(--accent);
+  color: transparent;
+  margin-left: 6px;
+  vertical-align: -2px;
+  height: 0.95em;
+  animation: caret 1.05s steps(2, end) infinite;
+}
+
+@keyframes caret {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+.hero .subtitle {
+  font-family: var(--font-body);
+  font-size: 15.5px;
+  color: var(--text-muted);
+  max-width: 580px;
+  margin: 0 auto 10px;
+  line-height: 1.6;
+}
+
+.hero .subtitle.warn {
+  font-size: 12.5px;
+  color: var(--amber);
+  margin-top: 4px;
+  margin-bottom: 20px;
+}
+
+.hero .subtitle.plat-note {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.55;
+  margin-top: 4px;
+  margin-bottom: 20px;
+  max-width: 640px;
+}
+.hero .subtitle.plat-note strong { color: var(--text); font-weight: 600; }
+.hero .subtitle.plat-note code {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--accent-bright);
+  background: var(--accent-subtle);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-word;
+}
+.hero .subtitle.plat-note .plat-warn { color: var(--amber); }
+.hero .subtitle.plat-note .plat-warn strong { color: var(--amber); }
+
+.hero .code-preview {
+  max-width: 540px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+/* ─── Code Blocks (terminal-styled) ─── */
+.code-block {
+  background:
+    linear-gradient(180deg, rgba(0, 170, 255, 0.025), transparent 60%),
+    var(--bg-code);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.7;
+  box-shadow: var(--shadow-card);
+  position: relative;
+}
+
+.code-block::before {
+  /* faint phosphor edge glow */
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1px rgba(0, 170, 255, 0.05), inset 0 0 24px -8px rgba(0, 170, 255, 0.18);
+}
+
+.code-block .bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  padding: 9px 16px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(0, 170, 255, 0.05), rgba(0, 170, 255, 0.015));
+}
+
+.code-block .bar .label {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  font-weight: 600;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.code-block pre {
+  padding: 20px;
+  overflow-x: auto;
+}
+
+.code-block pre::-webkit-scrollbar { height: 8px; }
+.code-block pre::-webkit-scrollbar-thumb { background: rgba(0, 170, 255, 0.18); border-radius: 4px; }
+
+/* Matrix-tuned syntax tokens — every hue pulled toward blue/cyan/amber so
+   the page never breaks its monochromatic phosphor mood. */
+.code-block code { color: var(--text); }
+.code-block .kw   { color: #5bcfff; font-weight: 600; }
+.code-block .fn   { color: #aae5ff; }
+.code-block .str  { color: #00aaff; }
+.code-block .num  { color: #ffb547; }
+.code-block .cm   { color: #3f667a; font-style: italic; }
+.code-block .prop { color: #d4f1ff; }
+.code-block .op   { color: #5bcfff; }
+
+/* ─── Hero Use-Case Panel ─── */
+.hero .use-cases {
+  max-width: 620px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.uc-panel {
+  background:
+    linear-gradient(180deg, rgba(0, 170, 255, 0.025), transparent 60%),
+    var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 0 0 1px rgba(0, 170, 255, 0.06), 0 24px 60px -30px rgba(0, 0, 0, 0.9);
+  position: relative;
+}
+
+.uc-panel::before {
+  /* faint phosphor edge glow, matching .code-block */
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1px rgba(0, 170, 255, 0.05), inset 0 0 24px -8px rgba(0, 170, 255, 0.18);
+}
+
+.uc-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(0, 170, 255, 0.05), rgba(0, 170, 255, 0.015));
+}
+
+.uc-head .uc-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent), 0 0 16px var(--accent-glow);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.uc-head .uc-overline {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.uc-head .uc-count {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+}
+
+.uc-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 9px 16px;
+  transition: background 0.2s cubic-bezier(.22, .61, .36, 1);
+}
+
+.uc-row + .uc-row { border-top: 1px solid var(--border); }
+
+.uc-row:hover { background: var(--accent-subtle); }
+
+.uc-row:hover .uc-icon {
+  border-color: var(--border-strong);
+  box-shadow: 0 0 18px -4px var(--accent-glow);
+  transform: translateY(-1px);
+}
+
+.uc-icon {
+  width: 34px; height: 34px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2px;
+  border-radius: 9px;
+  border: 1px solid var(--border-bright);
+  background: var(--accent-subtle);
+  color: var(--accent);
+  filter: drop-shadow(0 0 6px rgba(0, 170, 255, 0.25));
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s cubic-bezier(.22, .61, .36, 1);
+}
+
+.uc-icon svg { width: 17px; height: 17px; display: block; }
+
+.uc-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.uc-title {
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-bright);
+  letter-spacing: 0;
+  line-height: 1.4;
+}
+
+.uc-desc {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.uc-num {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding-top: 2px;
+  font-size: 10.5px;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+}
+
+@media (max-width: 560px) {
+  .uc-num { display: none; }
+}
+
+/* ─── Sections ─── */
+section { padding: 84px 0; position: relative; scroll-margin-top: 64px; }
+
+section .section-label {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2.2px;
+  text-transform: uppercase;
+  color: var(--accent-bright);
+  margin-bottom: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 13px;
+  border: 1px solid var(--border-bright);
+  border-radius: 100px;
+  background: var(--accent-subtle);
+  box-shadow: 0 0 16px -6px var(--accent-glow);
+}
+
+section .section-label::before {
+  content: '';
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+}
+
+section h2 {
+  font-family: var(--font-display);
+  font-size: clamp(26px, 3.6vw, 34px);
+  font-weight: 700;
+  letter-spacing: -1.1px;
+  color: var(--text-bright);
+  margin-bottom: 16px;
+  text-wrap: balance;
+}
+
+section .desc {
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: 15px;
+  margin-bottom: 44px;
+  max-width: 620px;
+}
+
+section .desc code,
+.flow-step .step-content code,
+.path-card .path-desc code,
+.security-item p code,
+footer p code {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  background: var(--accent-subtle);
+  border: 1px solid var(--border);
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: var(--accent-bright);
+  word-break: break-word;
+}
+
+/* ─── Pricing ─── */
+.pricing-card {
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius-lg);
+  background: var(--bg-raised);
+  padding: 36px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  align-items: start;
+  box-shadow: var(--shadow-card);
+  position: relative;
+  overflow: hidden;
+}
+
+.pricing-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity: 0.7;
+}
+
+.pricing-card .left h3 {
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin-bottom: 6px;
+  letter-spacing: 0;
+}
+
+.pricing-card .price {
+  font-family: var(--font-mono);
+  font-size: 44px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: -2px;
+  margin-bottom: 4px;
+}
+
+.pricing-card .price span {
+  font-size: 15px;
+  color: var(--text-muted);
+  letter-spacing: 0;
+  text-shadow: none;
+}
+
+.pricing-card .price-sub {
+  font-size: 12.5px;
+  color: var(--text-dim);
+  margin-bottom: 22px;
+  font-family: var(--font-mono);
+}
+
+.pricing-card .features {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pricing-card .features li {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pricing-card .features li::before {
+  content: '▸';
+  color: var(--accent);
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.pricing-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.pricing-table td:first-child { word-break: break-all; }
+
+.pricing-table th {
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--accent);
+  padding: 0 0 12px;
+  border-bottom: 1px solid var(--border-bright);
+  font-weight: 700;
+}
+
+.pricing-table td {
+  padding: 12px 0;
+  font-size: 13px;
+  font-family: var(--font-mono);
+  border-bottom: 1px solid var(--border);
+}
+
+.pricing-table tr:last-child td { border-bottom: none; }
+
+.pricing-table td:first-child { color: var(--text); }
+.pricing-table td:last-child  { color: var(--accent-bright); text-align: right; }
+
+/* ─── Flow ─── */
+.flow-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  position: relative;
+}
+
+.flow-step {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  gap: 22px;
+  padding: 24px 0;
+  position: relative;
+}
+
+.flow-step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 23px;
+  top: 64px;
+  bottom: 0;
+  width: 1px;
+  background: linear-gradient(to bottom, var(--accent), var(--border));
+  opacity: 0.45;
+}
+
+.flow-step .step-num {
+  width: 48px; height: 48px;
+  border-radius: 10px;
+  border: 1px solid var(--border-bright);
+  background: var(--bg-raised);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--accent);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 0 18px -8px var(--accent-glow), inset 0 0 0 1px rgba(0, 170, 255, 0.05);
+}
+
+.flow-step .step-content h4 {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin-bottom: 6px;
+}
+
+.flow-step .step-content p {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.flow-step .step-content .tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-body);
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 100px;
+  margin-top: 12px;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+}
+
+.flow-step .step-content .tag::before {
+  content: '';
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 6px currentColor;
+  flex-shrink: 0;
+}
+
+.tag-agent   { background: var(--accent-dim); color: var(--accent-bright); border: 1px solid var(--border-bright); }
+.tag-backend { background: var(--blue-dim); color: var(--accent-bright); border: 1px solid var(--border-bright); }
+.tag-chain   { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(255, 181, 71, 0.3); }
+
+/* ─── Security ─── */
+.security-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.security-item {
+  padding: 22px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+  position: relative;
+}
+
+.security-item:hover {
+  border-color: var(--border-bright);
+  box-shadow: 0 0 28px -10px var(--accent-glow);
+  transform: translateY(-2px);
+}
+
+.security-item h4 {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin-bottom: 8px;
+  letter-spacing: 0;
+}
+
+.security-item p {
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.security-item p strong { color: var(--text-bright); font-weight: 600; }
+
+/* ─── Chains ─── */
+.chain-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.chain-card {
+  padding: 24px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+  position: relative;
+}
+
+.chain-card:hover {
+  border-color: var(--border-bright);
+  box-shadow: 0 0 28px -10px var(--accent-glow);
+  transform: translateY(-2px);
+}
+
+/* Unified gradient hairline that lights up across every card family */
+.security-item::before,
+.chain-card::before,
+.path-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 12%;
+  right: 12%;
+  height: 1px;
+  background: var(--hairline);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+
+.security-item:hover::before,
+.chain-card:hover::before,
+.path-card:hover::before { opacity: 0.7; }
+
+.path-card.active::before { opacity: 0.5; }
+
+.chain-card .chain-name {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin-bottom: 4px;
+}
+
+.chain-card .chain-sub {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-dim);
+  margin-bottom: 18px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.chain-card .chain-stat {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12.5px;
+  font-family: var(--font-mono);
+}
+
+.chain-card .chain-stat:last-child { border: none; }
+.chain-card .chain-stat .label { color: var(--text-muted); }
+.chain-card .chain-stat .val { color: var(--accent-bright); }
+
+/* ─── Contract ─── */
+.contract-box {
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 32px;
+  box-shadow: 0 0 30px -16px var(--accent-glow);
+}
+
+.contract-box .contract-label {
+  font-size: 10.5px;
+  font-family: var(--font-mono);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.contract-box .contract-addr {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--accent);
+  word-break: break-all;
+}
+
+.contract-box .copy-btn {
+  padding: 9px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-bright);
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.18s;
+  white-space: nowrap;
+}
+
+.contract-box .copy-btn:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #00111a;
+  box-shadow: 0 0 18px var(--accent-glow);
+}
+
+/* ─── Footer ─── */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 44px 24px;
+  text-align: center;
+  position: relative;
+  z-index: 3;
+  background: rgba(2, 6, 10, 0.5);
+}
+
+footer p {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--text-dim);
+  letter-spacing: 0.2px;
+}
+
+footer a { color: var(--text-muted); }
+footer a:hover { color: var(--accent); }
+
+.footer-links {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 22px;
+  margin-bottom: 18px;
+  font-family: var(--font-body);
+  font-size: 13px;
+}
+
+/* ─── Divider ─── */
+.divider {
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--border-bright), transparent);
+  margin: 0;
+  position: relative;
+  z-index: 3;
+}
+
+/* ─── Two Paths ─── */
+.paths-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 32px;
+}
+
+.path-card {
+  padding: 28px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  position: relative;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+
+.path-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 36px -12px var(--accent-glow);
+}
+
+.path-card.active   { border-color: var(--border-bright); box-shadow: inset 0 0 0 1px rgba(0, 170, 255, 0.08); }
+.path-card.building { border-color: rgba(255, 181, 71, 0.32); }
+
+.path-badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 100px;
+  margin-bottom: 18px;
+}
+
+.path-badge.live {
+  background: var(--accent-dim);
+  color: var(--accent);
+  border: 1px solid var(--border-bright);
+  box-shadow: 0 0 14px -4px var(--accent-glow);
+}
+
+.path-badge.soon {
+  background: var(--amber-dim);
+  color: var(--amber);
+  border: 1px solid rgba(255, 181, 71, 0.3);
+}
+
+.path-card h3 {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin-bottom: 8px;
+}
+
+.path-card .path-desc {
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-bottom: 18px;
+}
+
+.path-card .path-steps {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.path-card .path-steps li {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--text-muted);
+  padding-left: 22px;
+  position: relative;
+  line-height: 1.55;
+}
+
+.path-card .path-steps li::before {
+  content: '▸';
+  position: absolute;
+  left: 4px; top: 0;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.path-card.active .path-steps li::before {
+  color: var(--accent);
+}
+
+.path-card.building .path-steps li::before {
+  color: var(--amber);
+}
+
+.path-card .path-traits {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.path-card .path-trait {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  gap: 12px;
+}
+
+.path-card .path-trait .label { color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+.path-card .path-trait .val { color: var(--text); text-align: right; }
+
+.current-note {
+  padding: 18px 22px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
+  background: var(--accent-subtle);
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  color: var(--text-muted);
+  line-height: 1.65;
+}
+
+.current-note strong { color: var(--accent); }
+
+/* ─── Callout (inline notes inside code sections) ─── */
+.callout {
+  padding: 16px 20px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
+  background: var(--accent-subtle);
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.62;
+  color: var(--text-muted);
+}
+.callout .callout-title {
+  font-family: var(--font-mono, var(--font-body));
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: var(--text-bright);
+  margin-bottom: 7px;
+}
+.callout p { margin: 0; }
+.callout code {
+  color: var(--accent-bright);
+  font-size: 0.92em;
+}
+.callout strong, .callout em { color: var(--text-bright); }
+.callout em { font-style: normal; }
+/* amber warn variant */
+.callout-warn {
+  border-color: rgba(255, 184, 77, 0.22);
+  border-left-color: #ffb84d;
+  background: rgba(255, 184, 77, 0.06);
+}
+.callout-warn .callout-title { color: #ffce80; }
+.callout-warn code { color: #ffce80; }
+.callout-warn strong, .callout-warn em { color: #ffe0b0; }
+/* ok / verified variant */
+.callout-ok {
+  border-color: rgba(64, 224, 160, 0.22);
+  border-left-color: #40e0a0;
+  background: rgba(64, 224, 160, 0.06);
+}
+.callout-ok .callout-title { color: #7ff0c4; }
+.callout-ok code { color: #7ff0c4; }
+.callout-ok strong, .callout-ok em { color: #b0f5dc; }
+
+/* ─── MEXC banner (autonomous-path on-ramp) ─── */
+.mexc-banner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 22px;
+  padding: 15px 20px;
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, rgba(0, 170, 255, 0.07), rgba(0, 170, 255, 0.02));
+  text-decoration: none;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+
+.mexc-banner:hover {
+  border-color: var(--border-strong);
+  box-shadow: 0 0 28px -10px var(--accent-glow);
+  transform: translateY(-1px);
+}
+
+.mexc-banner:hover * { text-shadow: none; }
+
+.mexc-banner img { flex-shrink: 0; border-radius: 8px; }
+
+.mexc-banner .mexc-text { display: flex; flex-direction: column; gap: 3px; }
+
+.mexc-banner .mexc-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text-bright);
+  letter-spacing: 0;
+}
+
+.mexc-banner .mexc-sub {
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.mexc-banner .mexc-arrow {
+  margin-left: auto;
+  color: var(--accent);
+  font-size: 20px;
+  transition: transform 0.2s;
+}
+
+.mexc-banner:hover .mexc-arrow { transform: translateX(4px); }
+
+/* ─── Inline section h3 (used inside Integration code blocks) ─── */
+section h3 {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+/* ─── Animations ─── */
+.fade-in {
+  opacity: 0;
+  transform: translateY(16px);
+  animation: fadeIn 0.7s ease forwards;
+}
+
+.fade-in:nth-child(2) { animation-delay: 0.08s; }
+.fade-in:nth-child(3) { animation-delay: 0.16s; }
+.fade-in:nth-child(4) { animation-delay: 0.24s; }
+.fade-in:nth-child(5) { animation-delay: 0.32s; }
+
+@keyframes fadeIn {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Responsive ─── */
+
+/* Global overflow guards — nothing should ever push the viewport wider. */
+.code-block,
+.uc-panel,
+.contract-box,
+.pricing-card,
+.security-item,
+.chain-card,
+.path-card,
+.mexc-banner,
+.current-note { max-width: 100%; }
+
+.code-block pre,
+.uc-text,
+.mexc-banner .mexc-text { min-width: 0; }
+
+@media (max-width: 760px) {
+  .pricing-card  { grid-template-columns: 1fr; }
+  .security-grid { grid-template-columns: 1fr; }
+  .chain-cards   { grid-template-columns: 1fr; }
+  .paths-grid    { grid-template-columns: 1fr; }
+  .contract-box  { flex-direction: column; align-items: flex-start; }
+  section h2 { font-size: 24px; }
+  .hero { padding: 44px 0 40px; }
+  #rain { opacity: 0.07; }
+}
+
+/* Collapse the nav links into a toggled dropdown before they crowd the bar. */
+@media (max-width: 720px) {
+  .nav-toggle { display: flex; }
+
+  nav .links {
+    position: absolute;
+    top: 56px;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    gap: 0;
+    padding: 8px 0;
+    background: rgba(2, 6, 10, 0.97);
+    backdrop-filter: blur(18px) saturate(150%);
+    -webkit-backdrop-filter: blur(18px) saturate(150%);
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 24px 50px -24px rgba(0, 0, 0, 0.9);
+    /* Collapsed by default; opened via [data-open] */
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transition: max-height 0.28s ease, opacity 0.2s ease;
+  }
+
+  nav .links[data-open="true"] {
+    max-height: 80vh;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  nav .links a {
+    display: block;
+    padding: 13px 24px;
+    font-size: 14px;
+    border-top: 1px solid var(--border);
+  }
+
+  nav .links a:first-child { border-top: none; }
+  nav .links a::after { display: none; }
+}
+
+/* Smallest phones: tighten section rhythm, hero, and code density. */
+@media (max-width: 480px) {
+  .container { padding: 0 16px; }
+  nav { padding: 0 16px; }
+  section { padding: 56px 0; }
+  section .desc { font-size: 14px; margin-bottom: 28px; }
+  .pricing-card { padding: 22px; gap: 24px; }
+  .code-block { font-size: 12px; }
+  .code-block pre { padding: 16px; }
+  .code-block .bar { padding: 8px 14px; }
+  .flow-step { gap: 14px; grid-template-columns: 38px 1fr; padding: 20px 0; }
+  .flow-step .step-num { width: 38px; height: 38px; font-size: 14px; }
+  .flow-step:not(:last-child)::after { left: 18px; top: 56px; }
+  .os-row { gap: 8px; }
+  .hero h1 { letter-spacing: -1px; }
+  .hero { padding: 32px 0 36px; }
+  .hero .subtitle { font-size: 14.5px; }
+  .contract-box { padding: 16px 18px; }
+  .uc-row { padding: 9px 14px; gap: 12px; }
+  .security-item { padding: 18px; }
+  .chain-card { padding: 20px; }
+  .path-card { padding: 22px; }
+}
+
+/* Very small / older phones: prevent any chip or label crowding. */
+@media (max-width: 380px) {
+  .container { padding: 0 14px; }
+  nav { padding: 0 14px; }
+  .os-row { flex-direction: column; align-items: stretch; }
+  .os-chip { justify-content: center; }
+  .footer-links { gap: 14px 18px; }
+  .pricing-card .price { font-size: 38px; }
+  .hero .protocol-badge { font-size: 10px; letter-spacing: 1.2px; }
+
+  /* Stack label/value pairs so long values never collide with their label. */
+  .path-card .path-trait,
+  .chain-card .chain-stat {
+    flex-direction: column;
+    gap: 2px;
+  }
+  .path-card .path-trait .val,
+  .chain-card .chain-stat .val { text-align: left; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #rain { display: none; }
+  .fade-in { animation: none; opacity: 1; transform: none; }
+  nav .logo::before, .hero .protocol-badge::before, .hero h1 .caret { animation: none; }
+  body::after { display: none; }
+}
+</style>
+</head>
+<body>
+<!-- ─── Digital rain canvas (Matrix) ─── -->
+<canvas id="rain" aria-hidden="true"></canvas>
+
+<!-- ─── Nav ─── -->
+<nav>
+  <div class="inner">
+    <div class="logo">
+      <span class="brand-mark"><img src="assets/sentinel-shield.png" alt="Sentinel"></span>
+      <span>auto</span>nomous
+    </div>
+    <button class="nav-toggle" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="nav-links">
+      <span class="nav-toggle-bar"></span>
+      <span class="nav-toggle-bar"></span>
+      <span class="nav-toggle-bar"></span>
+    </button>
+    <div class="links" id="nav-links">
+      <a href="#how-sentinel">How Sentinel works</a>
+      <a href="#flow">The flow</a>
+      <a href="#code">Integration</a>
+      <a href="#platforms">Platforms</a>
+      <a href="#security">Security</a>
+      <a href="https://x402.sentinel.co" target="_blank">x402 (managed)</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ─── Hero ─── -->
+<section class="hero">
+  <div class="container">
+    <div class="protocol-badge fade-in">
+      <img src="assets/sentinel-shield.png" alt="" style="width:16px;height:16px;object-fit:contain;display:inline-block;vertical-align:middle;filter:drop-shadow(0 0 4px rgba(30,136,229,0.5));">
+
+      Live on Sentinel Mainnet
+    </div>
+    <h1 class="fade-in">Fully autonomous<br>internet for <span class="highlight">AI agents</span><span class="caret"></span></h1>
+    <p class="subtitle fade-in">The agent holds its own P2P, picks any node on Sentinel's decentralized network, and pays it directly per gigabyte. No operator. No middleman. <strong>The x402 server is never contacted.</strong> One call &mdash; <code>connect()</code> from <code>blue-js-sdk/ai-path</code> &mdash; and the agent is private, end to end on-chain.</p>
+    <p class="subtitle fade-in" style="margin-top:-10px;">Want zero prerequisites instead &mdash; just pay USDC and let an operator provision you? That&rsquo;s the managed path at <a href="https://x402.sentinel.co" target="_blank">x402.sentinel.co</a>. This site is the self-funded one.</p>
+
+    <div class="os-row fade-in" aria-label="Operating system support">
+      <div class="os-chip live" title="Verified on Windows">
+        <span class="os-logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.7 10.8 4.6v6.9H3V5.7Zm0 12.6L10.8 19.4V12.5H3v5.8Zm8.8 1.2L21 20.8V12.5h-9.2v7Zm0-8h9.2V3.2l-9.2 1.3V11.5Z"/></svg>
+        </span>
+        <span class="os-label">Windows <span class="os-status">live</span></span>
+      </div>
+      <div class="os-chip live" title="Live — native CLI connect; install wireguard-tools (wg-quick) first">
+        <span class="os-logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.4 1.3c.1 1.1-.3 2.2-1 3-.6.8-1.7 1.4-2.7 1.4-.2-1.1.3-2.2.9-2.9.8-.9 2-1.5 2.8-1.5Zm3.6 16.4c-.5 1.2-.8 1.7-1.4 2.8-.9 1.5-2.2 3.4-3.9 3.5-1.5 0-1.8-.9-3.8-.9-1.9 0-2.3.9-3.8.9-1.6-.1-2.9-1.8-3.8-3.3-2.5-4.3-2.7-9.4-1.2-12.1 1.1-1.9 2.8-3.1 4.4-3.1 1.5 0 2.5.9 3.8.9 1.3 0 2.1-.9 3.9-.9 1.4 0 3 .8 4.1 2.2-3.6 2-3 7.2 1.7 10Z"/></svg>
+        </span>
+        <span class="os-label">macOS <span class="os-status">live</span></span>
+      </div>
+      <div class="os-chip live" title="Live — native CLI connect; install wireguard-tools first (except Fedora: SELinux blocks VPNs)">
+        <span class="os-logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.5 2c-2 0-3.3 1.6-3.3 4 0 1 .2 1.9.4 2.5-.7.5-1.3 1.4-1.8 2.6-.7 1.6-1 3.8-1.7 5.2-.5 1-1.5 1.5-2 2.2-.4.4-.5 1.3.4 1.6.7.2 1.3-.2 1.9-.6.4-.3.9-.4 1.2-.4.4.1.5.5.6 1 .1 1.3 1 2.2 2.9 2.4 1.8.2 4-.4 5.7-.4 1 0 1.7.1 2.3.1.6 0 1-.5 1-1 0-.5-.4-.9-.9-1.3-1.1-1-1.4-2.3-1.8-4-.4-1.6-.9-3.5-2.3-4.7.4-.8.6-1.7.6-2.7 0-2.3-1.3-4-3.2-4Zm-1 3.3c.4 0 .6.5.6 1s-.3 1-.6 1-.7-.5-.7-1 .3-1 .7-1Zm2.1 0c.4 0 .6.5.6 1s-.3 1-.6 1-.7-.5-.7-1 .3-1 .7-1Z"/></svg>
+        </span>
+        <span class="os-label">Linux <span class="os-status">live</span></span>
+      </div>
+    </div>
+
+    <p class="subtitle plat-note fade-in"><span class="plat-warn">Only exception: <strong>Fedora</strong> &mdash; its SELinux blocks VPNs and can&rsquo;t be worked around. macOS, Ubuntu and other mainstream Linux are fine.</span></p>
+
+    <div class="use-cases fade-in">
+      <div class="uc-panel">
+        <div class="uc-head">
+          <span class="uc-dot"></span>
+          <span class="uc-overline">agent dVPN &mdash; use cases</span>
+          <span class="uc-count">05</span>
+        </div>
+        <div class="uc-row">
+          <span class="uc-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10.6 10.6a2.4 2.4 0 0 0 3.4 3.4"/><path d="M9.9 5.2A10 10 0 0 1 12 5c4.5 0 8.2 2.9 9.5 7a10.6 10.6 0 0 1-2.8 4.3"/><path d="M6.2 6.2A10.5 10.5 0 0 0 2.5 12c1.3 4.1 5 7 9.5 7 1.2 0 2.4-.2 3.5-.6"/></svg>
+          </span>
+          <span class="uc-text">
+            <span class="uc-title">Agent privacy</span>
+            <span class="uc-desc">Mask the agent's IP &mdash; no request traces back to its operator.</span>
+          </span>
+          <span class="uc-num">01</span>
+        </div>
+        <div class="uc-row">
+          <span class="uc-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v3M7 15v5"/><rect x="5" y="7" width="4" height="8" rx="1"/><path d="M17 4v5M17 17v3"/><rect x="15" y="9" width="4" height="8" rx="1"/></svg>
+          </span>
+          <span class="uc-text">
+            <span class="uc-title">Geo-restricted exchanges</span>
+            <span class="uc-desc">Trade on Hyperliquid and region-locked venues from anywhere.</span>
+          </span>
+          <span class="uc-num">02</span>
+        </div>
+        <div class="uc-row">
+          <span class="uc-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a13.5 13.5 0 0 1 0 18a13.5 13.5 0 0 1 0-18"/></svg>
+          </span>
+          <span class="uc-text">
+            <span class="uc-title">Geo-locked APIs &amp; data</span>
+            <span class="uc-desc">Fetch sources only served in certain countries.</span>
+          </span>
+          <span class="uc-num">03</span>
+        </div>
+        <div class="uc-row">
+          <span class="uc-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>
+          </span>
+          <span class="uc-text">
+            <span class="uc-title">Anonymity at scale</span>
+            <span class="uc-desc">Rotate exits across hundreds of servers to dodge IP bans and rate limits.</span>
+          </span>
+          <span class="uc-num">04</span>
+        </div>
+        <div class="uc-row">
+          <span class="uc-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 0 1 1.9 9.6"/><path d="M8 12h2.5M13.5 12H16"/></svg>
+          </span>
+          <span class="uc-text">
+            <span class="uc-title">Censorship resistance</span>
+            <span class="uc-desc">Reach the open internet from blocked networks.</span>
+          </span>
+          <span class="uc-num">05</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ─── What this is / how it differs from x402 ─── -->
+<section id="compare">
+  <div class="container">
+    <div class="section-label">Autonomous vs Managed</div>
+    <h2>Two ways onto the same network</h2>
+    <p class="desc">Sentinel is one decentralized VPN network. There are two ways an AI agent can get onto it. <strong>This site is about the autonomous one</strong> &mdash; maximum sovereignty, the agent pays nodes directly. The managed one lives at <a href="https://x402.sentinel.co" target="_blank">x402.sentinel.co</a> &mdash; zero prerequisites, an operator provisions you for USDC. Pick by how much you want to hold yourself.</p>
+
+    <div class="paths-grid">
+      <div class="path-card active">
+        <span class="path-badge live">This site</span>
+        <h3>Autonomous &mdash; agent pays nodes directly</h3>
+        <p class="path-desc">The agent holds its own P2P, queries the on-chain node registry, and pays a node directly at its posted per-GB rate. No operator, no fee-grant, no subscription. The payment and the tunnel are both peer-to-peer &mdash; nothing in the middle.</p>
+        <ul class="path-steps">
+          <li>Agent funds itself with P2P (e.g. buy on an exchange, withdraw)</li>
+          <li>Agent creates a Sentinel wallet, holds its own keys</li>
+          <li>Agent queries nodes, picks by country / speed / price</li>
+          <li>Agent starts the session, pays the node in P2P per GB</li>
+          <li>Handshakes directly with the node (WireGuard / V2Ray)</li>
+          <li>Full control &mdash; no middleman, no plan needed</li>
+        </ul>
+        <div class="path-traits">
+          <div class="path-trait"><span class="label">Pay</span><span class="val">P2P, directly to the node</span></div>
+          <div class="path-trait"><span class="label">Gas</span><span class="val">Agent pays &mdash; bundled into the session TX</span></div>
+          <div class="path-trait"><span class="label">Node choice</span><span class="val">Any node on the network (auto-pick or pin one)</span></div>
+          <div class="path-trait"><span class="label">Trust</span><span class="val">Zero &mdash; agent controls everything</span></div>
+          <div class="path-trait"><span class="label">Prereq</span><span class="val">Hold P2P + manage own gas</span></div>
+          <div class="path-trait"><span class="label">Best for</span><span class="val">Max sovereignty, long-running agents</span></div>
+        </div>
+      </div>
+
+      <div class="path-card">
+        <span class="path-badge">x402.sentinel.co</span>
+        <h3>Managed &mdash; pay USDC, get provisioned</h3>
+        <p class="path-desc">The agent makes one paid HTTP request over the x402 protocol. An operator settles the USDC on Base, adds the agent to a subscription plan, and grants a gas allowance. The agent connects with one command &mdash; no P2P, no gas, no chain ops. The tunnel is still direct.</p>
+        <ul class="path-steps">
+          <li>Agent sends <code>POST /vpn/connect/30days</code></li>
+          <li>Server returns HTTP 402 + payment details</li>
+          <li>@x402/fetch auto-signs USDC (EIP-3009)</li>
+          <li>Facilitator settles payment on Base</li>
+          <li>Operator runs MsgShareSubscription + MsgGrantAllowance</li>
+          <li>Agent connects &mdash; zero gas, one command</li>
+        </ul>
+        <div class="path-traits">
+          <div class="path-trait"><span class="label">Pay</span><span class="val">USDC on Base &mdash; from $0.033/day</span></div>
+          <div class="path-trait"><span class="label">Gas</span><span class="val">$0 &mdash; fee granted by operator</span></div>
+          <div class="path-trait"><span class="label">Node choice</span><span class="val">Nodes in the operator plan</span></div>
+          <div class="path-trait"><span class="label">Trust</span><span class="val">Minimal &mdash; tunnel still direct</span></div>
+          <div class="path-trait"><span class="label">Prereq</span><span class="val">Only USDC on Base</span></div>
+          <div class="path-trait"><span class="label">Best for</span><span class="val">Fastest integration, zero setup</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="current-note">
+      <strong>The honest trade-off:</strong> autonomous gives the agent total control and no third party in the loop &mdash; in return the agent must hold P2P and pay its own gas. Managed asks the agent only to hold USDC, but trusts an operator to provision the subscription (the tunnel itself is still direct, and the operator never sees traffic). Same Sentinel network, same WireGuard/V2Ray tunnels. An agent can use either, or both, and switch any time.
+      Looking for the managed path? &rarr; <a href="https://x402.sentinel.co" target="_blank">x402.sentinel.co</a>.
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ─── How Sentinel works (thorough intro) ─── -->
+<!-- Sources for the facts in this section: sentinel.co, docs.sentinel.co/p2p-coin,
+     and the verified E2E in this repo. Numbers are presented with a "live network
+     median" hedge, not as guarantees. -->
+<section id="how-sentinel">
+  <div class="container">
+    <div class="section-label">How Sentinel works</div>
+    <h2>A decentralized VPN, owned by no one</h2>
+    <p class="desc">The autonomous flow only makes sense once you understand what it&rsquo;s talking to. Sentinel is not a company&rsquo;s VPN with servers you trust &mdash; it&rsquo;s an open network of independent node operators, coordinated entirely on-chain. There is no central server to subpoena, no account to ban, no API key to revoke.</p>
+
+    <div class="flow-steps">
+      <div class="flow-step">
+        <div class="step-num">&#9737;</div>
+        <div class="step-content">
+          <h4>1,500+ independent nodes, 70+ countries</h4>
+          <p>Anyone can run a node and earn for the bandwidth they serve. Nodes register themselves on the Sentinel blockchain; the registry is the chain, protected by consensus &mdash; not a directory some operator controls. The agent reads that registry directly to discover and choose nodes.</p>
+          <span class="tag tag-chain">On-chain registry</span>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="step-num">&#8383;</div>
+        <div class="step-content">
+          <h4>The P2P coin &mdash; the network&rsquo;s native unit</h4>
+          <p>P2P (denom <code>udvpn</code>, where <strong>1 P2P = 1,000,000 udvpn</strong>) is what everything runs on: it pays for bandwidth, pays gas for chain transactions, and is staked to secure the network and vote in governance. In the autonomous flow the agent holds P2P and spends it directly &mdash; no fiat rail, no operator in between.</p>
+          <span class="tag tag-chain">udvpn</span>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="step-num">&#8644;</div>
+        <div class="step-content">
+          <h4>Pay-as-you-go, straight to the host</h4>
+          <p>Each node posts its own price. The autonomous agent pays that price <strong>per gigabyte</strong>, directly, for exactly what it uses &mdash; no plan, no tier, no minimum commitment. Bandwidth revenue splits <strong>80% to the node host / 20% to stakers</strong>, so the people serving traffic are the ones earning from it.</p>
+          <span class="tag tag-agent">Direct to node</span>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="step-num">&#36;</div>
+        <div class="step-content">
+          <h4>What a gigabyte actually costs</h4>
+          <p>The protocol floor is <code>100 udvpn/GB</code>. In practice the <strong>live network median is ~40 P2P/GB</strong>, and the cheapest nodes run <strong>~2 P2P/GB</strong>. Our verified test paid 40.19 P2P for a 1&nbsp;GB session &mdash; right at the median. Prices move with the market; treat these as live figures, not a quote.</p>
+          <span class="tag tag-chain">~40 P2P/GB median</span>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="step-num">&#8987;</div>
+        <div class="step-content">
+          <h4>The session lifecycle &mdash; all peer-to-peer</h4>
+          <p>The agent probes the node directly over HTTPS, opens an on-chain <code>MsgStartSession</code> (paying its own gas), and the node confirms. Then the agent and node complete a <strong>WireGuard</strong> or <strong>V2Ray</strong> handshake and the encrypted tunnel comes up. No intermediary touches the payment, the session, or the traffic at any step.</p>
+          <span class="tag tag-agent">MsgStartSession</span>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="step-num">&#9919;</div>
+        <div class="step-content">
+          <h4>Two tunnel protocols</h4>
+          <p><strong>WireGuard</strong> (~30% of nodes, faster) captures all system traffic &mdash; transparent, full-route, needs admin once. <strong>V2Ray</strong> (~70% of nodes, zero-admin) is a userspace SOCKS5 proxy &mdash; only traffic you point at it routes through. The agent picks per node; both are end-to-end encrypted between agent and node.</p>
+          <span class="tag tag-agent">WireGuard / V2Ray</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ─── The autonomous flow ─── -->
+<section id="flow">
+  <div class="container">
+    <div class="section-label">The Autonomous Flow</div>
+    <h2>Four steps, no operator</h2>
+    <p class="desc">Everything the agent does, it does itself. It funds its own wallet, holds its own keys, picks its own node, pays that node directly, and handshakes peer-to-peer. The x402 server is never contacted &mdash; there is no fee-grant, no subscription, no plan. One call: <code>connect()</code> from <code>blue-js-sdk/ai-path</code>.</p>
+
+    <div class="callout callout-ok" style="max-width: 760px; margin: 0 auto 36px;">
+      <div class="callout-title">&#10003; Verified live on mainnet</div>
+      <p>A funded test agent ran this end-to-end with no operator in the loop: it picked a US node, opened on-chain session <code>45433200</code>, paid <strong>40.19&nbsp;P2P</strong> for a 1&nbsp;GB V2Ray session, and the SDK confirmed the exit IP <code>104.252.19.187</code> through the tunnel &mdash; ~67&nbsp;s start to finish. That 40&nbsp;P2P is the live network median; the cheapest nodes run ~2&nbsp;P2P/GB.</p>
+    </div>
+
+    <div class="flow-steps">
+      <div class="flow-step">
+        <div class="step-num">0</div>
+        <div class="step-content">
+          <h4>Agent funds itself with P2P</h4>
+          <p>The agent needs P2P in its own wallet. One way, fully by API: market-buy P2P with USDT on an exchange and withdraw the tokens to the agent&rsquo;s Sentinel address. No human, no UI &mdash; a worked recipe is below.</p>
+          <span class="tag tag-chain">P2P &middot; udvpn</span>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <h4>Own wallet, own keys</h4>
+          <p>The agent creates a Sentinel wallet and holds the mnemonic itself &mdash; the keys never leave the agent. <code>createWallet()</code> from <code>blue-js-sdk/ai-path</code> returns <code>{ address, mnemonic }</code>. It pays its own gas, bundled into the session transaction, from the P2P in step zero.</p>
+          <span class="tag tag-agent">createWallet()</span>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <h4>Pick any node on the network</h4>
+          <p>The agent reads the live node registry and picks by country, speed, and price &mdash; or passes <code>country</code> and lets the SDK auto-select the best one. Every node posts its own <strong>per-gigabyte</strong> rate (median ~40&nbsp;P2P/GB, from ~2&nbsp;P2P on the cheapest); the agent pays exactly that &mdash; no plan, no tier.</p>
+          <span class="tag tag-agent">Agent &rarr; Chain</span>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <h4>Pay the node, handshake directly</h4>
+          <p>The agent starts the session, pays the node in P2P at its posted rate, then handshakes directly over WireGuard (full system route) or V2Ray (zero-admin SOCKS5 proxy). No middleman in the payment or the tunnel &mdash; the x402 server is never contacted. <code>connect()</code> registers cleanup handlers, so a crashed process never strands the tunnel.</p>
+          <span class="tag tag-agent">Agent &harr; Node</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top: 48px;">
+      <h3 style="font-size: 13px; color: var(--accent); margin-bottom: 10px; letter-spacing: 1.5px; text-transform: uppercase;">
+        Step zero in practice &mdash; agent buys P2P on MEXC, fully by API
+      </h3>
+      <p class="desc" style="margin-bottom: 18px;">No human, no UI. The agent market-buys P2P with USDT on MEXC spot &mdash; the <code>P2PUSDT</code> pair is live (maker fee 0%, taker 0.05%, minimum market order 1 USDT) &mdash; then withdraws the tokens to its own Sentinel wallet. Three signed HTTP calls, no SDK required. Auth is an <code>X-MEXC-APIKEY</code> header plus an HMAC-SHA256 signature of the query string. (Any venue that lists P2P works &mdash; MEXC is just a worked example.)</p>
+
+      <!-- MEXC banner — click through to the live P2P/USDT market -->
+      <a href="https://www.mexc.com/exchange/P2P_USDT" target="_blank" rel="noopener" class="mexc-banner">
+        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAYAAABS3GwHAAAJqUlEQVR4nO3dTXYTSRYF4Bt2nYahlyBWgFlByyso16BB3RPkFdC1AswKwCsoeUK7qgaIFThZQatXgGoH6lHZnIOjBmGBfvwjZUa89+L5fiPOgaMIiXwReSMzMgEiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiItpO0O6AmkHsIeAQV3iKiH0E9ADsXf/tDBFTBEyxg0+IGOMsTPU628Li9wP6SN9t/fsFfATQVPf9Mnl4BTCIQ0S8RDoottEg4BRnYZS/UxkNYh8Rr+H1+2X2cArgeTxEwFsAvY6fNEXAgbkRs/2Bv2qKgDcPpRD8F8Bh3MMjfED3A2NZxDF+C2+yfmZbz+NrBBxn/tTRdSFMM3+uKb4LYBB7iDhH91H/NiNc4meMw6zQ598tFfdbAMNCLdic7TLyWwD/ivv4inN8D35lREzwBQfiRXAY9/A3nCNgv3BLM+ziAO/DpHA7Kna0O1DEIPbwFR9Q+uAHgID961FY1iO8FTj4AWAPX/EBg9gTaEuczwIoe9pzkyGex9diraW2hmLtAelU8jCWH1CE+SuAFzHHSs/2Ao4xiP3i7aTVrOPi7azr4RHkilyIrwyQQu9nxR5McYlnxfJA+VB/vxSKG7X2M/M2A2iPUD08xr+LfXrEK2ge/KkP2r9xVn5mAP3R/7uAJ9mXDi19v10887Iq5GkGsDMylRkl7Xy/KxxqdyEXPzPAi/gZ2qcHi3LOApZG/2SGSzxRuwCYkY8ZYBCHsHTwA0DMmgXsjP7JHh6JLsMW46MA0t2d1rzMsm6eRv9h9+5k96N2B3KovwDSFcq+ci9uspdpRcja6D/XF7nuUVj9BWD3AEnLll1mgTT69/N1KLNYfxiuvwAsHyBdZ4ErvIS1bLMsz2meoroLwGL4XdVlFggmz/0XVR+G6y4Am+F3VbtZoIbiTqoOw/VeB7C3Nn6X7dfNrV3XuEvF9wfVPAPYDb/r9vB4i8BYz+ifVByG6y0A2+F33Ta3R9R3w1m1YbjOAqhthEx6+Ge8f6Ss87tVG4brLIA6wu+6K7y699/UN/rPVRmG6ysAu1d+N3H31dM6R/+5Kq8M11cAdYXfdXeN8LXObHMVhuG6lkHTc3D+i3pHyeSmZcP0ZLdznQ5lU91t0nXNAGkpsafdjc5umgXqPfdfVF0YrqsA4gYhsg7L58t155pVVYXhegrgH3EfEHkQlIzlEd/D6D9XVRj+QbsDG9vFK0TtTmTV//a0NZsbXtpLYbjR7sYm6gjBKfx+hsSjDmWNEOCvACoKw3WcAqXw6+3gB4Chw4MfqCgM11EAfsLvQ1JFGLZfAN7C78NRRRi2XwC77kd/8+fJrVVwZdh2CPYbfudGAP4PuC1y82HY9gzgN/wmAacIGGt3oyDzYdh2AfgOvxOcheb6nqBGuS8lmQ7DdgvAe/gNOPn25x18VOxJaabDsN0C8B1+p7hYOPX5EyMwDKuwWQDpiQ9mf7QMmqVgmP58qted4szuGbZZAOnOSJM/WBYB6y/YZhhWYbMAfNwbf7OA5sb3BjAMq7BXACkw9ZR7UdLtpzpxIRj7YzIM2ysAVL4v9m5TnIXRrX/7BQ0YhkXZKgC7L4PIpbnzb8dhtrQ86o+5MGyrAPxsC7zZTeF31QXeCfREi7kwbKsAPIdf4ONGL81LS6JN6c4oMhWG7RSA9/C7g9HG/3aTmaJepsKwnQLwHn7/EzZf509LogzDAmwUgPfw22ZEZxgWYaMAvIffNuf0KQx7nQXMhGEbBeA7/I5avTGeYViEfgF4D7+hw01uvk+DTIRh/QLwHn67vDvL+/1BBsKwbgEw/N7P92YZ9TCsPQP0ldsvKc85vO/NMt1eJJ6BbgH4Dr/jVuF37VOcb5aJumFYrwC8h9/djAHW92aZfc0wrDkD+A2/AQ3eh0m2z/MfhtX2f+sUgPfwW+KUxXcY7muFYa0ZoK/UroS7N720xTBchE4B+A6/TZFP9b5ZRikMyxeA9/Bb8lbmrwzDuWnMAL7Db46lz9v8HiZgGM5KtgAYfrvzvllGOAxLzwB94fYklQm/q3xvlhEPw7IF4Dn8drnrc/u2GIYzkSsA7+EXW+z57cr3kyNEw7DkDOA3/Lbd9NKW980ygmFYpgC8h1/J05/vbTIMZyA1A/SF2tHQbdNLW6nNfPcb2SIWhmUKwPOrjjRH4uD4/qCIv0s0U74ABrEHz6860jwX9/3kCJHTIIkZoC/QhhbZ8LvK+2aZx+X3DJcvgOh49NcIv+t98Ht/kMCxIzEDPBVoQ8NEJfyu8r1Zple6gfIFEJxe/LJ0NdbvZpnig6fEKVCveBvyll9zqs3vZhkXIdij5decavMbhlkAJlm8Cus5DBckUQB2RsocSm96actnGC5+7EiEYF8FYPlUw99rVh0UQHR1v4rMppe2vL1mNWBaugmJU6A/BNqQ0mh34E7enhwR8b/STUicAvmZASyG31WeNsvslB9wyheApfXybjZ7zak2T5tlBE6fyxeAl/+QbV5zqq2Gmep+E4kBR+Y6QMAnkXbK2e41p9rSkuhUuRfdCGUZmQKo/b71GkfUGvu8rJFoRKYA0upErTds2V76vE3q81S5F22J7bOQvBXiWLCtfGoeSSN+1u5CK4K/uVwBnIVphQfTuMrRf+63MEZ9CxAnkqttsjfDpSwwFW2zvRlCpSPoooAj1JO/priUPVOQLYCUBY5E22zvTRXr/vdJ36GOmTfgSPo2c/nboc9CU8Gp0Al+DX6uqKbvYvsWiYA3GltMg3SD3wziCNHg4xLT7c4H2t0o4kU8h82ndJzg1/CAXpEEAGdhaOKpCosiJrjAT9rdKOYSP8Ha0+QCTrUOfkB7R9hZGMLK1BzQ4AsOTG11zG0cZrjEAWDk/qyA0+tjQLELFgzisfK7A9SmYDXav3k65z9Wa/9bN6wYxD4ifoHsOwRmiDi6Xi9/eAZxeF0EPcFWpwg4MvFMJWifAi1Kq0MHkDslOsElnjzYgx9It0sEHAhmsRNc4pmVgx+wNAMsSg/UPS60SjTCLk7wPtgKg9rK/ebpkS0B7yxeV7FZAHPpP6UP4CVih+W7gAbAJ1zgneuQm8P8N0+PtG//bM6ABgEf8SdGln9z2wWwaBB7uMI+AvoIeIqIPaRz18WHJ80QMEPABFf4AwETXGBs+T/ANP7mRERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERES05i+Vhd12LSf8ZQAAAABJRU5ErkJggg==" alt="MEXC logo" width="38" height="38">
+        <span class="mexc-text">
+          <span class="mexc-title">Buy P2P on MEXC</span>
+          <span class="mexc-sub">Live spot market &middot; P2P/USDT &middot; mexc.com/exchange/P2P_USDT</span>
+        </span>
+        <span class="mexc-arrow">&rarr;</span>
+      </a>
+
+      <div class="code-block">
+        <div class="bar">
+          <div class="label">MEXC Spot API v3 &mdash; market-buy P2P, withdraw to the agent's Sentinel wallet</div>
+        </div>
+        <pre><code><span class="kw">import</span> { <span class="fn">createHmac</span> } <span class="kw">from</span> <span class="str">'node:crypto'</span><span class="op">;</span>
+
+<span class="kw">const</span> KEY <span class="op">=</span> process<span class="op">.</span>env<span class="op">.</span>MEXC_API_KEY<span class="op">;</span>      <span class="cm">// dashboard key with Spot Trade + Withdraw scopes</span>
+<span class="kw">const</span> SECRET <span class="op">=</span> process<span class="op">.</span>env<span class="op">.</span>MEXC_API_SECRET<span class="op">;</span>
+
+<span class="kw">async function</span> <span class="fn">mexc</span>(method<span class="op">,</span> path<span class="op">,</span> params <span class="op">=</span> {}) {
+  <span class="kw">const</span> qs <span class="op">=</span> <span class="kw">new</span> <span class="fn">URLSearchParams</span>({ <span class="op">...</span>params<span class="op">,</span> <span class="prop">timestamp</span><span class="op">:</span> Date<span class="op">.</span><span class="fn">now</span>() })<span class="op">.</span><span class="fn">toString</span>()<span class="op">;</span>
+  <span class="kw">const</span> sig <span class="op">=</span> <span class="fn">createHmac</span>(<span class="str">'sha256'</span><span class="op">,</span> SECRET)<span class="op">.</span><span class="fn">update</span>(qs)<span class="op">.</span><span class="fn">digest</span>(<span class="str">'hex'</span>)<span class="op">;</span>
+  <span class="kw">const</span> res <span class="op">=</span> <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">`https://api.mexc.com${path}?${qs}&amp;signature=${sig}`</span><span class="op">,</span> {
+    method<span class="op">,</span> <span class="prop">headers</span><span class="op">:</span> { <span class="str">'X-MEXC-APIKEY'</span><span class="op">:</span> KEY }<span class="op">,</span>
+  })<span class="op">;</span>
+  <span class="kw">return</span> res<span class="op">.</span><span class="fn">json</span>()<span class="op">;</span>
+}
+
+<span class="cm">// 1. Market-buy P2P with USDT &mdash; spend exactly 10 USDT (min 1, max 100k per order)</span>
+<span class="kw">await</span> <span class="fn">mexc</span>(<span class="str">'POST'</span><span class="op">,</span> <span class="str">'/api/v3/order'</span><span class="op">,</span> {
+  <span class="prop">symbol</span><span class="op">:</span> <span class="str">'P2PUSDT'</span><span class="op">,</span> <span class="prop">side</span><span class="op">:</span> <span class="str">'BUY'</span><span class="op">,</span> <span class="prop">type</span><span class="op">:</span> <span class="str">'MARKET'</span><span class="op">,</span> <span class="prop">quoteOrderQty</span><span class="op">:</span> <span class="str">'10'</span><span class="op">,</span>
+})<span class="op">;</span>
+
+<span class="cm">// 2. Read the filled P2P balance</span>
+<span class="kw">const</span> { balances } <span class="op">=</span> <span class="kw">await</span> <span class="fn">mexc</span>(<span class="str">'GET'</span><span class="op">,</span> <span class="str">'/api/v3/account'</span>)<span class="op">;</span>
+<span class="kw">const</span> amount <span class="op">=</span> balances<span class="op">.</span><span class="fn">find</span>(b <span class="op">=&gt;</span> b<span class="op">.</span>asset <span class="op">===</span> <span class="str">'P2P'</span>)<span class="op">.</span>free<span class="op">;</span>
+
+<span class="cm">// 3. Withdraw to the agent's own Sentinel wallet (wallet.address = 'sent1...')</span>
+<span class="kw">const</span> { networkList } <span class="op">=</span> (<span class="kw">await</span> <span class="fn">mexc</span>(<span class="str">'GET'</span><span class="op">,</span> <span class="str">'/api/v3/capital/config/getall'</span>))
+  <span class="op">.</span><span class="fn">find</span>(c <span class="op">=&gt;</span> c<span class="op">.</span>coin <span class="op">===</span> <span class="str">'P2P'</span>)<span class="op">;</span>
+<span class="kw">await</span> <span class="fn">mexc</span>(<span class="str">'POST'</span><span class="op">,</span> <span class="str">'/api/v3/capital/withdraw'</span><span class="op">,</span> {
+  <span class="prop">coin</span><span class="op">:</span> <span class="str">'P2P'</span><span class="op">,</span> <span class="prop">netWork</span><span class="op">:</span> networkList[<span class="num">0</span>]<span class="op">.</span>netWork<span class="op">,</span>
+  <span class="prop">address</span><span class="op">:</span> wallet<span class="op">.</span>address<span class="op">,</span> amount<span class="op">,</span>
+})<span class="op">;</span>
+
+<span class="cm">// P2P lands on-chain in the agent's wallet &mdash; gas + direct node payments covered.</span>
+<span class="cm">// At ~$0.00008/P2P, 10 USDT buys ~125,000 P2P: years of gas, weeks of bandwidth.</span></code></pre>
+      </div>
+
+      <p class="desc" style="font-size: 13px; margin-top: 14px; margin-bottom: 0;">One-time human setup: create the MEXC API key with <em>Spot Trade</em> + <em>Withdraw</em> permissions and allowlist the agent's <code>sent1...</code> withdrawal address. From then on the agent is self-funding &mdash; it can top up its own P2P whenever the balance runs low.</p>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ─── Integration / code ─── -->
+<section id="code">
+  <div class="container">
+    <div class="section-label">Integration</div>
+    <h2>The verified autonomous path</h2>
+    <p class="desc">One import, one call. The agent holds its own keys, pays the node directly, and the SDK verifies the exit IP <em>through the tunnel</em>. This is the exact surface that ran the verified mainnet session above &mdash; <code>connect</code>, <code>disconnect</code>, <code>getBalance</code> from <code>blue-js-sdk/ai-path</code>.</p>
+
+    <div class="code-block" style="margin-bottom: 24px;">
+      <div class="bar">
+        <div class="label">Install</div>
+      </div>
+      <pre><code><span class="fn">npm install</span> blue-js-sdk</code></pre>
+    </div>
+
+    <div class="code-block" style="margin-bottom: 24px;">
+      <div class="bar">
+        <div class="label">Connect to a node &mdash; agent pays it directly in P2P</div>
+      </div>
+      <pre><code><span class="kw">import</span> { <span class="fn">connect</span>, <span class="fn">disconnect</span>, <span class="fn">getBalance</span> } <span class="kw">from</span> <span class="str">'blue-js-sdk/ai-path'</span><span class="op">;</span>
+
+<span class="cm">// Agent already holds P2P (bought on MEXC by API &mdash; see step zero above).</span>
+<span class="cm">// getBalance &rarr; { address, udvpn, p2p, sufficient }</span>
+<span class="kw">const</span> bal <span class="op">=</span> <span class="kw">await</span> <span class="fn">getBalance</span>(process<span class="op">.</span>env<span class="op">.</span>SENTINEL_MNEMONIC)<span class="op">;</span>
+
+<span class="cm">// Pick any Sentinel node and pay it directly in P2P. No x402, no operator.</span>
+<span class="cm">// protocol: 'v2ray' = zero admin on Windows; the binary auto-downloads (~70% of nodes).</span>
+<span class="cm">// Omit country to let the SDK pick the best node anywhere; pass nodeAddress to pin one.</span>
+<span class="kw">const</span> vpn <span class="op">=</span> <span class="kw">await</span> <span class="fn">connect</span>({
+  <span class="prop">mnemonic</span><span class="op">:</span> process<span class="op">.</span>env<span class="op">.</span>SENTINEL_MNEMONIC<span class="op">,</span>  <span class="cm">// agent holds its own keys</span>
+  <span class="prop">country</span><span class="op">:</span> <span class="str">'US'</span><span class="op">,</span>                          <span class="cm">// optional &mdash; or { nodeAddress: 'sentnode1...' }</span>
+  <span class="prop">protocol</span><span class="op">:</span> <span class="str">'v2ray'</span><span class="op">,</span>                     <span class="cm">// 'v2ray' (zero admin) or 'wireguard' (full route, admin once)</span>
+  <span class="prop">gigabytes</span><span class="op">:</span> <span class="num">1</span><span class="op">,</span>                          <span class="cm">// default 1 &mdash; pay per-GB; or { preferHourly: true, hours: 24 }</span>
+})<span class="op">;</span>
+
+<span class="cm">// vpn &rarr; {</span>
+<span class="cm">//   sessionId: '45433200',          // on-chain session, paid by the agent</span>
+<span class="cm">//   protocol: 'v2ray',</span>
+<span class="cm">//   nodeAddress: 'sentnode1qjy6h...',</span>
+<span class="cm">//   ip: '104.252.19.187',           // exit IP, verified THROUGH the tunnel by the SDK</span>
+<span class="cm">//   socksPort: 1080,                // V2Ray: route traffic through this SOCKS5 port</span>
+<span class="cm">// }</span>
+
+<span class="cm">// ...do work over the tunnel...</span>
+
+<span class="kw">await</span> <span class="fn">disconnect</span>()<span class="op">;</span>  <span class="cm">// soft: session preserved on-chain, unused GB stays available</span></code></pre>
+    </div>
+
+    <div class="callout callout-warn" style="margin-bottom: 24px;">
+      <div class="callout-title">&#9888;&#65039; V2Ray routes through a SOCKS5 proxy, not the whole system</div>
+      <p>WireGuard captures <em>all</em> system traffic, so your public IP changes the moment it connects. <strong>V2Ray is a userspace SOCKS5 proxy</strong> &mdash; only traffic you point at <code>vpn.socksPort</code> goes through the node. A plain <code>fetch()</code> on the OS default route still shows your real IP, and that is expected, not a failure. The SDK already proves routing for you in <code>vpn.ip</code> (checked through the tunnel). Use <code>vpn.socksPort</code> with a SOCKS agent, or pick <code>protocol: 'wireguard'</code> for transparent system-wide routing.</p>
+    </div>
+
+    <div class="code-block" style="margin-bottom: 24px;">
+      <div class="bar">
+        <div class="label">What the agent manages &mdash; the full autonomous lifecycle</div>
+      </div>
+      <pre><code><span class="cm">// The agent controls the full lifecycle &mdash; no x402, no operator:</span>
+<span class="cm">//</span>
+<span class="cm">// 1. Wallet:    Agent creates &amp; holds its Sentinel keys (mnemonic)</span>
+<span class="cm">// 2. Tokens:    Agent holds P2P (bought on an exchange by API &mdash; step zero above)</span>
+<span class="cm">// 3. Gas:       Agent pays its own Sentinel gas (bundled into the session TX)</span>
+<span class="cm">// 4. Node:      Agent queries nodes, picks by country / speed / price</span>
+<span class="cm">// 5. Session:   Agent starts &amp; ends sessions, paying the node at its</span>
+<span class="cm">//               posted per-GB rate &mdash; ~40 P2P buys 1 GB at the live</span>
+<span class="cm">//               median (cheapest nodes ~2 P2P/GB)</span>
+<span class="cm">// 6. Tunnel:    Agent handshakes directly with the node (WireGuard / V2Ray)</span>
+<span class="cm">//</span>
+<span class="cm">// connect() registers cleanup handlers automatically &mdash; on crash or exit it</span>
+<span class="cm">// tears the tunnel down so a dropped process never strands your connection.</span>
+<span class="cm">//</span>
+<span class="cm">// Zero middlemen. Zero trust required. Full autonomy. Ships in blue-js-sdk today.</span></code></pre>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ─── Platforms ─── -->
+<section id="platforms">
+  <div class="container">
+    <div class="section-label">Platforms</div>
+    <h2>Same payment everywhere, connect differs by OS</h2>
+    <p class="desc">The chain payment &mdash; funding, node selection, <code>MsgStartSession</code> &mdash; is identical on every platform. Only the final tunnel bring-up differs. On Windows the SDK does it for you; on macOS &amp; Linux you use Sentinel&rsquo;s native CLI.</p>
+
+    <div class="code-block" style="margin-bottom: 24px;">
+      <div class="bar">
+        <div class="label">Windows &mdash; zero admin via blue-js-sdk (JS tunnel)</div>
+      </div>
+      <pre><code><span class="cm">// protocol: 'v2ray' = zero admin, zero manual install. connect() auto-downloads</span>
+<span class="cm">// the v2ray binary to ~/.sentinel-sdk/bin on first use (no admin), covering ~70%</span>
+<span class="cm">// of nodes. setup() is optional &mdash; it just pre-fetches the binary.</span>
+<span class="kw">const</span> vpn <span class="op">=</span> <span class="kw">await</span> <span class="fn">connect</span>({ <span class="prop">mnemonic</span><span class="op">,</span> <span class="prop">country</span><span class="op">:</span> <span class="str">'US'</span><span class="op">,</span> <span class="prop">protocol</span><span class="op">:</span> <span class="str">'v2ray'</span><span class="op">,</span> <span class="prop">gigabytes</span><span class="op">:</span> <span class="num">1</span> })<span class="op">;</span>
+
+<span class="cm">// WireGuard nodes (the other ~30%, faster) need admin ONCE for the MSI install +</span>
+<span class="cm">// tunnel service. The SDK checks for admin BEFORE payment and refuses a WireGuard</span>
+<span class="cm">// node when not elevated &mdash; so no P2P is ever wasted. Can't elevate? Stay on v2ray.</span></code></pre>
+    </div>
+
+    <div class="code-block" style="margin-bottom: 24px;">
+      <div class="bar">
+        <div class="label">macOS &amp; Linux &mdash; native CLI (sentinel-dvpncli)</div>
+      </div>
+      <pre><code><span class="cm">// The CLI does NOT bundle a tunnel: it shells out to wg-quick for WireGuard nodes,</span>
+<span class="cm">// so install wireguard-tools first (apt / brew / pacman). Needs Go 1.24+ to build.</span>
+<span class="cm">// CLI: https://github.com/sentinel-official/sentinel-dvpncli</span>
+go install github.com/sentinel-official/sentinel-dvpncli@latest
+
+<span class="cm">// 1. Import the agent's wallet (keys add is interactive: line 1 = mnemonic,</span>
+<span class="cm">//    blank line 2 = default empty passphrase).</span>
+<span class="kw">printf</span> <span class="str">'%s\n\n'</span> <span class="str">"$AGENT_MNEMONIC"</span> | sentinel-dvpncli keys add agent --keyring.backend test
+
+<span class="cm">// 2. Start a session against the node the agent picked, paying P2P directly.</span>
+sentinel-dvpncli tx session-start <span class="str">"$NODE_ADDRESS"</span> \
+  --tx.from-name agent --keyring.backend test \
+  --rpc.chain-id sentinelhub-2 --output-format json
+
+<span class="cm">// 3. Bring the tunnel up (WireGuard may need sudo to create the interface).</span>
+sentinel-dvpncli connect <span class="str">"$SESSION_ID"</span>
+<span class="cm">// &rarr; tunnel up. Tear down with: sentinel-dvpncli tx session-cancel "$SESSION_ID"</span>
+<span class="cm">// Only exception across all platforms: Fedora (SELinux blocks VPN interfaces).</span></code></pre>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ─── Security ─── -->
+<section id="security">
+  <div class="container">
+    <div class="section-label">Security</div>
+    <h2>Zero trust by construction</h2>
+    <p class="desc">The autonomous flow removes the operator entirely. There is no one to trust with provisioning, no one holding a fee grant, no one in the payment path. The only parties are the agent and the node it chose &mdash; and even the node never sees the agent&rsquo;s keys.</p>
+
+    <div class="security-grid">
+      <div class="security-item">
+        <h4>Keys never leave the agent</h4>
+        <p>The agent generates and holds its own Sentinel mnemonic. It signs <code>MsgStartSession</code> locally. No operator, no server, and no node ever receives the private key.</p>
+      </div>
+      <div class="security-item">
+        <h4>The tunnel is always agent-to-node</h4>
+        <p>The WireGuard / V2Ray handshake is direct between the agent and the node it picked. Nothing sits in the middle of the tunnel &mdash; there is no middleman to see traffic, encryption keys, or destinations.</p>
+      </div>
+      <div class="security-item">
+        <h4>No operator, no fee grant, no plan</h4>
+        <p>Unlike the managed path, nothing is provisioned for the agent. It pays its own gas and pays the node directly in P2P. There is no third party who could revoke, throttle, or de-anonymize it.</p>
+      </div>
+      <div class="security-item">
+        <h4>Pay only for what you use</h4>
+        <p>Per-GB, directly to the node, settled on-chain. No subscription to leak identity, no recurring billing relationship, no account. The session is the only record, and it&rsquo;s pseudonymous on-chain.</p>
+      </div>
+      <div class="security-item">
+        <h4>Decentralized by design</h4>
+        <p>The node registry is the Sentinel blockchain, protected by consensus &mdash; not a directory any company controls. There is no central server to compromise, subpoena, or shut down.</p>
+      </div>
+      <div class="security-item">
+        <h4>No PII, anywhere</h4>
+        <p>The agent never registers, never gives an email, never passes KYC. The chain sees a pseudonymous address and a session; the node sees encrypted traffic. That&rsquo;s all there is.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── Footer ─── -->
+<footer>
+  <div class="footer-links">
+    <a href="https://github.com/Sentinel-Bluebuilder/autonomous" target="_blank">GitHub</a>
+    <a href="https://www.npmjs.com/package/blue-js-sdk" target="_blank">blue-js-sdk</a>
+    <a href="https://x402.sentinel.co" target="_blank">x402 (managed path)</a>
+    <a href="https://sentinel.co" target="_blank">Sentinel Network</a>
+    <a href="https://docs.sentinel.co" target="_blank">Sentinel Docs</a>
+  </div>
+  <p>Autonomous &mdash; the agent holds its own P2P and pays nodes directly. No operator, no middleman. Built on <a href="https://sentinel.co" target="_blank">Sentinel</a>.</p>
+</footer>
+
+
+<script>
+/* ─── Digital rain (Matrix) ───
+   Lightweight katakana cascade — repaints columns of glyphs at staggered
+   speeds. Density and speed are tuned low so the page text stays readable.
+   Honors prefers-reduced-motion (canvas hidden via CSS rule). */
+(function () {
+  const canvas = document.getElementById('rain');
+  if (!canvas) return;
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  const ctx = canvas.getContext('2d');
+  const GLYPHS = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789ABCDEF<>/=$+';
+  const FONT_SIZE = 16;
+
+  let columns = 0;
+  let drops = [];
+  let dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+
+  function resize() {
+    dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    canvas.width  = window.innerWidth  * dpr;
+    canvas.height = window.innerHeight * dpr;
+    canvas.style.width  = window.innerWidth  + 'px';
+    canvas.style.height = window.innerHeight + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    columns = Math.ceil(window.innerWidth / FONT_SIZE);
+    drops = new Array(columns).fill(0).map(() => Math.random() * -50);
+  }
+
+  function draw() {
+    // Trailing fade — semi-transparent black covers prior frame so glyphs
+    // leave a phosphor trail. Lower alpha = longer trail.
+    ctx.fillStyle = 'rgba(2, 6, 10, 0.085)';
+    ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+
+    ctx.font = FONT_SIZE + 'px JetBrains Mono, monospace';
+    ctx.textBaseline = 'top';
+
+    for (let i = 0; i < drops.length; i++) {
+      const x = i * FONT_SIZE;
+      const y = drops[i] * FONT_SIZE;
+      const ch = GLYPHS.charAt((Math.random() * GLYPHS.length) | 0);
+
+      // Head of each column is bright white-blue; trail is darker phosphor.
+      ctx.fillStyle = Math.random() < 0.04 ? '#eaf9ff' : '#0088cc';
+      ctx.fillText(ch, x, y);
+
+      if (y > window.innerHeight && Math.random() > 0.975) {
+        drops[i] = 0;
+      }
+      drops[i] += 0.55 + Math.random() * 0.5;
+    }
+  }
+
+  let raf = 0;
+  let last = 0;
+  function loop(ts) {
+    // Cap at ~30fps so the rain stays calm and CPU stays cheap.
+    if (ts - last >= 33) {
+      draw();
+      last = ts;
+    }
+    raf = requestAnimationFrame(loop);
+  }
+
+  resize();
+  window.addEventListener('resize', () => { cancelAnimationFrame(raf); resize(); raf = requestAnimationFrame(loop); }, { passive: true });
+  raf = requestAnimationFrame(loop);
+
+  // Pause when the tab is hidden so the canvas isn't burning cycles.
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { cancelAnimationFrame(raf); raf = 0; }
+    else if (!raf) { raf = requestAnimationFrame(loop); }
+  });
+})();
+
+/* ─── Mobile nav toggle ───
+   Opens/closes the collapsed link panel under ≤720px. Closes on link tap,
+   on Escape, and on resize back to desktop so state never gets stuck. */
+(function () {
+  const toggle = document.querySelector('.nav-toggle');
+  const links = document.getElementById('nav-links');
+  if (!toggle || !links) return;
+
+  function setOpen(open) {
+    links.dataset.open = open ? 'true' : 'false';
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+
+  toggle.addEventListener('click', () => setOpen(links.dataset.open !== 'true'));
+  links.querySelectorAll('a').forEach((a) => a.addEventListener('click', () => setOpen(false)));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setOpen(false); });
+  window.addEventListener('resize', () => { if (window.innerWidth > 720) setOpen(false); }, { passive: true });
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,125 @@
+# Autonomous (Sentinel)
+
+> Fully self-funded private internet for AI agents. The agent holds its own P2P, picks any Sentinel node, and pays that node directly per gigabyte. No operator, no fee-grant, no subscription, no HTTP server in the middle — the x402 server is never contacted. One import, one `connect()` call from `blue-js-sdk/ai-path`. Maximum sovereignty: the agent controls keys, gas, node selection, and payment.
+
+This is the **autonomous** path. There is a separate **managed** path at https://x402.sentinel.co where the agent pays USDC on Base and an operator provisions a Sentinel subscription + gas grant (zero prerequisites beyond USDC). Same network, same direct WireGuard/V2Ray tunnels. Use autonomous when you want zero intermediaries and are willing to hold P2P + pay your own gas; use managed when you only want to hold USDC. See https://x402.sentinel.co/llms.txt for that path.
+
+## How Sentinel works (the network this talks to)
+
+Sentinel is a decentralized VPN: 1,500+ independent node operators across 70+ countries, coordinated entirely on-chain. There is no central server, no account, no API key. The node registry IS the blockchain, protected by consensus.
+
+- Native coin: **P2P**, denom `udvpn`, where **1 P2P = 1,000,000 udvpn**. It pays for bandwidth, pays gas, is staked to secure the chain, and votes in governance.
+- Pricing is pay-as-you-go, **per gigabyte**, posted by each node. Protocol floor `100 udvpn/GB`. Live network median **~40 P2P/GB**; cheapest nodes **~2 P2P/GB**. Bandwidth revenue splits **80% node host / 20% stakers**.
+- Two tunnel protocols: **WireGuard** (~30% of nodes, faster, full system route, needs admin once on Windows) and **V2Ray** (~70% of nodes, zero-admin userspace SOCKS5 proxy).
+- Session lifecycle is all peer-to-peer: direct HTTPS node probe → on-chain `MsgStartSession` (agent pays its own gas) → node confirms → WireGuard/V2Ray handshake → encrypted tunnel. No intermediary touches the payment, the session, or the traffic.
+
+Verified live on mainnet: a funded test agent, no operator in the loop, picked a US node, opened session **45433200**, paid **40.19 P2P** for a 1 GB V2Ray session, and the SDK confirmed exit IP **104.252.19.187** through the tunnel — ~67 s end to end.
+
+## Prerequisites
+
+The agent needs exactly two things it manages itself:
+
+1. **A Sentinel wallet it controls.** `createWallet()` from `blue-js-sdk/ai-path` returns `{ address, mnemonic }`. The mnemonic never leaves the agent.
+2. **P2P in that wallet** — covers both per-GB node payments and its own gas (gas is bundled into the session TX).
+
+There is no operator to provision anything. No fee-grant, no subscription, no USDC.
+
+### Step zero — fund the wallet with P2P, fully by API
+
+The agent can self-fund with no human and no UI by market-buying P2P with USDT on an exchange that lists it, then withdrawing to its own `sent1...` address. MEXC is a worked example — the `P2PUSDT` spot pair is live (maker 0%, taker 0.05%, min market order 1 USDT). Three signed HTTP calls, auth = `X-MEXC-APIKEY` header + HMAC-SHA256 signature of the query string:
+
+```js
+import { createHmac } from 'node:crypto';
+const KEY = process.env.MEXC_API_KEY;       // Spot Trade + Withdraw scopes
+const SECRET = process.env.MEXC_API_SECRET;
+async function mexc(method, path, params = {}) {
+  const qs = new URLSearchParams({ ...params, timestamp: Date.now() }).toString();
+  const sig = createHmac('sha256', SECRET).update(qs).digest('hex');
+  const res = await fetch(`https://api.mexc.com${path}?${qs}&signature=${sig}`, {
+    method, headers: { 'X-MEXC-APIKEY': KEY },
+  });
+  return res.json();
+}
+// 1. Market-buy P2P with 10 USDT (min 1, max 100k per order)
+await mexc('POST', '/api/v3/order', { symbol: 'P2PUSDT', side: 'BUY', type: 'MARKET', quoteOrderQty: '10' });
+// 2. Read filled P2P balance
+const { balances } = await mexc('GET', '/api/v3/account');
+const amount = balances.find(b => b.asset === 'P2P').free;
+// 3. Withdraw to the agent's own Sentinel wallet
+const cfg = (await mexc('GET', '/api/v3/capital/config/getall')).find(c => c.coin === 'P2P');
+await mexc('POST', '/api/v3/capital/withdraw', { coin: 'P2P', netWork: cfg.networkList[0].netWork, address: wallet.address, amount });
+```
+
+One-time human setup: create the MEXC API key with *Spot Trade* + *Withdraw* permissions and allowlist the `sent1...` withdrawal address. At ~$0.00008/P2P, 10 USDT ≈ 125,000 P2P — years of gas, weeks of bandwidth. Any venue that lists P2P works.
+
+## Agent flow
+
+1. Agent holds P2P in its own wallet (step zero above).
+2. Agent reads the live node registry and picks by country / speed / price — or passes `country` and lets the SDK auto-select; or pins one with `nodeAddress`.
+3. Agent calls `connect()` → starts an on-chain session, pays the node directly in P2P at its posted per-GB rate, pays its own gas.
+4. Agent and node complete a WireGuard or V2Ray handshake — tunnel up. No middleman.
+5. The SDK verifies the exit IP THROUGH the tunnel and returns it as `vpn.ip`.
+6. `await disconnect()` — soft: session preserved on-chain, unused GB stays available.
+
+## Reference code — the verified autonomous path
+
+```js
+import { connect, disconnect, getBalance } from 'blue-js-sdk/ai-path';
+
+// Agent already holds P2P (bought on MEXC by API — step zero).
+const bal = await getBalance(process.env.SENTINEL_MNEMONIC); // { address, udvpn, p2p, sufficient }
+
+const vpn = await connect({
+  mnemonic: process.env.SENTINEL_MNEMONIC,  // agent holds its own keys
+  country: 'US',          // optional — or nodeAddress: 'sentnode1...' to pin one; omit for best anywhere
+  protocol: 'v2ray',      // 'v2ray' (zero admin, auto-downloads binary, ~70% of nodes) or 'wireguard' (full route, admin once)
+  gigabytes: 1,           // default 1 — pay per-GB; or { preferHourly: true, hours: 24 }
+});
+// vpn → {
+//   sessionId: '45433200',        // on-chain session, paid by the agent
+//   protocol: 'v2ray',
+//   nodeAddress: 'sentnode1qjy6h...',
+//   ip: '104.252.19.187',         // exit IP, verified THROUGH the tunnel by the SDK
+//   socksPort: 1080,              // V2Ray: route traffic through this SOCKS5 port
+// }
+
+// ...do work over the tunnel...
+
+await disconnect(); // soft: session preserved on-chain, unused GB stays available
+```
+
+> **V2Ray is a SOCKS5 proxy, not a system route.** WireGuard captures ALL system traffic, so your public IP changes the moment it connects. V2Ray only routes traffic you send to `vpn.socksPort`; a plain `fetch()` on the OS default route still shows your real IP — expected, not a failure. `vpn.ip` already proves routing (checked through the tunnel). Use `vpn.socksPort` with a SOCKS agent, or `protocol: 'wireguard'` for transparent system-wide routing. `connect()` registers cleanup handlers automatically, so a crashed process never strands the tunnel.
+
+## Platforms
+
+The chain payment (funding, node selection, `MsgStartSession`) is identical everywhere. Only the final tunnel bring-up differs.
+
+- **Windows — zero admin via blue-js-sdk.** `protocol: 'v2ray'` needs no admin and no manual install: `connect()` auto-downloads the v2ray binary to `~/.sentinel-sdk/bin` on first use (~70% of nodes). WireGuard nodes (the other ~30%, faster) need admin ONCE for the MSI install + tunnel service; the SDK checks for admin BEFORE payment and refuses a WireGuard node when not elevated, so no P2P is wasted. Can't elevate? Stay on v2ray.
+- **macOS & Linux — native CLI (`sentinel-dvpncli`).** `go install github.com/sentinel-official/sentinel-dvpncli@latest` (Go 1.24+). The CLI does NOT bundle a tunnel — it shells out to `wg-quick` for WireGuard nodes, so install **wireguard-tools** first (`apt`/`brew`/`pacman`). Import the wallet (`printf '%s\n\n' "$AGENT_MNEMONIC" | sentinel-dvpncli keys add agent --keyring.backend test`), `sentinel-dvpncli tx session-start "$NODE_ADDRESS" --tx.from-name agent --keyring.backend test --rpc.chain-id sentinelhub-2 --output-format json`, then `sentinel-dvpncli connect "$SESSION_ID"`. Tear down with `tx session-cancel`. Only exception across all platforms: **Fedora** (SELinux blocks VPN interfaces).
+
+## Packages
+
+- `blue-js-sdk/ai-path` — the agent entry point. Wallet (`createWallet`, `importWallet`, `getBalance`), tunnel (`connect`, `disconnect`), node/plan discovery (`rpcQueryNodesForPlan`, `createRpcQueryClientWithFallback`), environment setup (`setup` — pre-fetches tunnel binaries). WireGuard + V2Ray.
+- `sentinel-dvpncli` — macOS/Linux native Go CLI connect path (`go install github.com/sentinel-official/sentinel-dvpncli@latest`, Go 1.24+). Does NOT bundle a tunnel: shells out to `wg-quick` (install wireguard-tools) or `v2ray` on PATH.
+
+## Sentinel chain endpoints
+
+`blue-js-sdk` ships verified RPC and LCD fallbacks and rotates through them automatically (`createRpcQueryClientWithFallback()`); add more at runtime with `addRpcEndpoint(url)`. RPC-first — LCD is fallback only.
+
+- RPC: `rpc.sentinel.co:443`, `sentinel-rpc.polkachu.com`, `rpc.mathnodes.com`, `sentinel-rpc.publicnode.com`, `rpc.sentinel.quokkastake.io`, `rpc.sentinel.suchnode.net`
+- LCD (fallback only): `lcd.sentinel.co`, `sentinel-api.polkachu.com`, `api.sentinel.quokkastake.io`, `sentinel-rest.publicnode.com`, `api.sentinel.suchnode.net`
+
+## Security properties
+
+- Keys never leave the agent. It generates and holds its own Sentinel mnemonic and signs `MsgStartSession` locally. No operator, no server, no node ever receives the private key.
+- The tunnel is always agent ↔ node. Nothing sits in the middle to see traffic, keys, or destinations.
+- No operator, no fee-grant, no subscription, no plan. The agent pays its own gas and pays the node directly in P2P. No third party can revoke, throttle, or de-anonymize it.
+- No PII anywhere. The agent never registers, never gives an email, never passes KYC. The chain sees a pseudonymous address and a session; the node sees encrypted traffic.
+- Decentralized by design — the node registry is the blockchain, not a directory any company controls. No central server to compromise, subpoena, or shut down.
+
+## Source
+
+- GitHub: https://github.com/Sentinel-Bluebuilder/autonomous
+- SDK: https://www.npmjs.com/package/blue-js-sdk
+- Managed path (pay USDC): https://x402.sentinel.co — https://x402.sentinel.co/llms.txt
+- Sentinel: https://sentinel.co — https://docs.sentinel.co
