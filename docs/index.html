@@ -523,6 +523,54 @@ nav .links a:hover::after { right: 0; }
   line-height: 1.6;
 }
 
+.hero .subtitle.subtitle-lead {
+  font-size: 17px;
+  color: var(--text);
+  max-width: 600px;
+  margin-bottom: 22px;
+}
+
+.hero .hero-points {
+  list-style: none;
+  padding: 0;
+  margin: 0 auto 22px;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+}
+.hero .hero-points li {
+  position: relative;
+  padding-left: 22px;
+  font-family: var(--font-body);
+  font-size: 14.5px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.hero .hero-points li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent, #00aaff);
+  box-shadow: 0 0 8px rgba(30,136,229,0.6);
+}
+.hero .hero-points strong { color: var(--text); font-weight: 600; }
+.hero .hero-points a { color: var(--accent, #00aaff); text-decoration: none; }
+.hero .hero-points a:hover { text-decoration: underline; }
+
+.hero .subtitle.subtitle-aside {
+  font-size: 13px;
+  color: var(--text-muted);
+  opacity: 0.85;
+  margin-top: 0;
+  margin-bottom: 24px;
+}
+
 .hero .subtitle.warn {
   font-size: 12.5px;
   color: var(--amber);
@@ -1624,8 +1672,15 @@ section h3 {
 <section class="hero">
   <div class="container">
     <h1 class="fade-in">Fully autonomous<br>internet for <span class="highlight">AI agents</span><span class="caret"></span></h1>
-    <p class="subtitle fade-in">The agent holds its own P2P, picks any node on Sentinel's decentralized network, and pays it directly per gigabyte. No operator. No middleman. <strong>The x402 server is never contacted.</strong> Works on every platform &mdash; one <code>connect()</code> call from <code>blue-js-sdk/ai-path</code> on Windows, the native <code>sentinel-dvpncli</code> on macOS &amp; Linux &mdash; and the agent is private, end to end on-chain.</p>
-    <p class="subtitle fade-in" style="margin-top:-10px;">Want zero prerequisites instead &mdash; just pay USDC and let an operator provision you? That&rsquo;s the managed path at <a href="https://x402.sentinel.co" target="_blank">x402.sentinel.co</a>. This site is the self-funded one.</p>
+    <p class="subtitle subtitle-lead fade-in">The agent holds its own P2P, picks any node on Sentinel's decentralized network, and pays it directly per gigabyte &mdash; private, end to end on-chain.</p>
+
+    <ul class="hero-points fade-in" aria-label="What makes this autonomous">
+      <li><strong>No operator, no middleman.</strong> The x402 server is never contacted.</li>
+      <li><strong>The agent owns everything.</strong> Its keys, its funds, its node choice, its gas.</li>
+      <li><strong>Runs on every platform.</strong> Windows, macOS &amp; Linux &mdash; see <a href="#platforms">Platforms</a>.</li>
+    </ul>
+
+    <p class="subtitle subtitle-aside fade-in">Want zero prerequisites instead &mdash; just pay USDC and let an operator provision you? That&rsquo;s the managed path at <a href="https://x402.sentinel.co" target="_blank">x402.sentinel.co</a>. This site is the self-funded one.</p>
 
     <div class="os-row fade-in" aria-label="Operating system support">
       <div class="os-chip live" title="Verified on Windows">
