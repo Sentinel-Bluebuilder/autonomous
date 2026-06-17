@@ -1717,7 +1717,6 @@ section h3 {
 <!-- ─── What this is / how it differs from x402 ─── -->
 <section id="compare">
   <div class="container">
-    <div class="section-label">Autonomous vs Managed</div>
     <h2>Two ways onto the same network</h2>
     <p class="desc">Sentinel is one decentralized VPN network. There are two ways an AI agent can get onto it. <strong>This site is about the autonomous one</strong> &mdash; maximum sovereignty, the agent pays nodes directly. The managed one lives at <a href="https://x402.sentinel.co" target="_blank">x402.sentinel.co</a> &mdash; zero prerequisites, an operator provisions you for USDC. Pick by how much you want to hold yourself.</p>
 
@@ -1782,7 +1781,6 @@ section h3 {
      median" hedge, not as guarantees. -->
 <section id="how-sentinel">
   <div class="container">
-    <div class="section-label">How Sentinel works</div>
     <h2>A decentralized VPN, owned by no one</h2>
     <p class="desc">The autonomous flow only makes sense once you understand what it&rsquo;s talking to. Sentinel is not a company&rsquo;s VPN with servers you trust &mdash; it&rsquo;s an open network of independent node operators, coordinated entirely on-chain. There is no central server to subpoena, no account to ban, no API key to revoke.</p>
 
@@ -1849,7 +1847,6 @@ section h3 {
 <!-- ─── The autonomous flow ─── -->
 <section id="flow">
   <div class="container">
-    <div class="section-label">The Autonomous Flow</div>
     <h2>Four steps, no operator</h2>
     <p class="desc">Everything the agent does, it does itself. It funds its own wallet, holds its own keys, picks its own node, pays that node directly, and handshakes peer-to-peer. The x402 server is never contacted &mdash; there is no fee-grant, no subscription, no plan. One call on Windows (<code>connect()</code> from <code>blue-js-sdk/ai-path</code>); the native <code>sentinel-dvpncli</code> on macOS &amp; Linux.</p>
 
@@ -1961,7 +1958,6 @@ section h3 {
 <!-- ─── Integration / code ─── -->
 <section id="code">
   <div class="container">
-    <div class="section-label">Integration</div>
     <h2>The verified autonomous path</h2>
     <p class="desc">One import, one call. The agent holds its own keys, pays the node directly, and the SDK verifies the exit IP <em>through the tunnel</em>. This is the exact surface that ran the verified mainnet session above &mdash; <code>connect</code>, <code>disconnect</code>, <code>getBalance</code> from <code>blue-js-sdk/ai-path</code>.</p>
 
@@ -2038,7 +2034,6 @@ section h3 {
 <!-- ─── Platforms ─── -->
 <section id="platforms">
   <div class="container">
-    <div class="section-label">Platforms</div>
     <h2>Same payment everywhere, connect differs by OS</h2>
     <p class="desc">The chain payment &mdash; funding, node selection, <code>MsgStartSession</code> &mdash; is identical on every platform. Only the final tunnel bring-up differs. On Windows the SDK does it for you; on macOS &amp; Linux you use Sentinel&rsquo;s native CLI.</p>
 
@@ -2087,7 +2082,6 @@ sentinel-dvpncli connect <span class="str">"$SESSION_ID"</span>
 <!-- ─── Security ─── -->
 <section id="security">
   <div class="container">
-    <div class="section-label">Security</div>
     <h2>Zero trust by construction</h2>
     <p class="desc">The autonomous flow removes the operator entirely. There is no one to trust with provisioning, no one holding a fee grant, no one in the payment path. The only parties are the agent and the node it chose &mdash; and even the node never sees the agent&rsquo;s keys.</p>
 
