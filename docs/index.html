@@ -19,14 +19,13 @@
   "@context": "https://schema.org",
   "@type": "HowTo",
   "name": "Autonomous Sentinel dVPN connection for AI agents",
-  "description": "An AI agent funds itself with P2P, picks any node on Sentinel's decentralized network, pays the node directly per-GB, and handshakes peer-to-peer. The x402 server is never contacted.",
+  "description": "An AI agent holds its own P2P, picks any node on Sentinel's decentralized network, pays the node directly per-GB, and handshakes peer-to-peer. The x402 server is never contacted.",
   "totalTime": "PT2M",
   "tool": [
     { "@type": "HowToTool", "name": "blue-js-sdk/ai-path (connect, disconnect, getBalance, createWallet)" },
     { "@type": "HowToTool", "name": "P2P balance in the agent's own Sentinel wallet" }
   ],
   "step": [
-    { "@type": "HowToStep", "name": "Fund with P2P",       "text": "Acquire P2P (denom udvpn, 1 P2P = 1,000,000 udvpn) into the agent's own wallet — e.g. buy P2P on an exchange and withdraw to the Sentinel address." },
     { "@type": "HowToStep", "name": "Own wallet, own keys", "text": "createWallet() from blue-js-sdk/ai-path returns { address, mnemonic }. The mnemonic never leaves the agent." },
     { "@type": "HowToStep", "name": "Pick any node",        "text": "Filter the on-chain node registry by country/price/protocol, or pass country and let the SDK auto-select." },
     { "@type": "HowToStep", "name": "Pay node + handshake", "text": "connect({ mnemonic, country, protocol, gigabytes }) pays the node directly per-GB via MsgStartSession and brings up the WireGuard or V2Ray tunnel." }
@@ -1447,55 +1446,6 @@ footer a:hover { color: var(--accent); }
 .callout-ok code { color: #7ff0c4; }
 .callout-ok strong, .callout-ok em { color: #b0f5dc; }
 
-/* ─── MEXC banner (autonomous-path on-ramp) ─── */
-.mexc-banner {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 22px;
-  padding: 15px 20px;
-  border: 1px solid var(--border-bright);
-  border-radius: var(--radius);
-  background: linear-gradient(135deg, rgba(0, 170, 255, 0.07), rgba(0, 170, 255, 0.02));
-  text-decoration: none;
-  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
-}
-
-.mexc-banner:hover {
-  border-color: var(--border-strong);
-  box-shadow: 0 0 28px -10px var(--accent-glow);
-  transform: translateY(-1px);
-}
-
-.mexc-banner:hover * { text-shadow: none; }
-
-.mexc-banner img { flex-shrink: 0; border-radius: 8px; }
-
-.mexc-banner .mexc-text { display: flex; flex-direction: column; gap: 3px; }
-
-.mexc-banner .mexc-title {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 15px;
-  color: var(--text-bright);
-  letter-spacing: 0;
-}
-
-.mexc-banner .mexc-sub {
-  font-family: var(--font-body);
-  font-size: 12.5px;
-  color: var(--text-muted);
-}
-
-.mexc-banner .mexc-arrow {
-  margin-left: auto;
-  color: var(--accent);
-  font-size: 20px;
-  transition: transform 0.2s;
-}
-
-.mexc-banner:hover .mexc-arrow { transform: translateX(4px); }
-
 /* ─── Inline section h3 (used inside Integration code blocks) ─── */
 section h3 {
   font-family: var(--font-mono);
@@ -1529,12 +1479,10 @@ section h3 {
 .security-item,
 .chain-card,
 .path-card,
-.mexc-banner,
 .current-note { max-width: 100%; }
 
 .code-block pre,
-.uc-text,
-.mexc-banner .mexc-text { min-width: 0; }
+.uc-text { min-width: 0; }
 
 @media (max-width: 760px) {
   .pricing-card  { grid-template-columns: 1fr; }
@@ -1781,7 +1729,6 @@ section h3 {
         <h3>Autonomous &mdash; agent pays nodes directly</h3>
         <p class="path-desc">The agent holds its own P2P, queries the on-chain node registry, and pays a node directly at its posted per-GB rate. No operator, no fee-grant, no subscription. The payment and the tunnel are both peer-to-peer &mdash; nothing in the middle.</p>
         <ul class="path-steps">
-          <li>Agent funds itself with P2P (e.g. buy on an exchange, withdraw)</li>
           <li>Agent creates a Sentinel wallet, holds its own keys</li>
           <li>Agent queries nodes, picks by country / speed / price</li>
           <li>Agent starts the session, pays the node in P2P per GB</li>
@@ -1902,29 +1849,20 @@ section h3 {
 <!-- ─── The autonomous flow ─── -->
 <section id="flow">
   <div class="container">
-    <h2>Four steps, no operator</h2>
-    <p class="desc">Everything the agent does, it does itself. It funds its own wallet, holds its own keys, picks its own node, pays that node directly, and handshakes peer-to-peer. The x402 server is never contacted &mdash; there is no fee-grant, no subscription, no plan. One call on Windows (<code>connect()</code> from <code>blue-js-sdk/ai-path</code>); the native <code>sentinel-dvpncli</code> on macOS &amp; Linux.</p>
+    <h2>Three steps, no operator</h2>
+    <p class="desc">Everything the agent does, it does itself. It holds its own keys, picks its own node, pays that node directly, and handshakes peer-to-peer. The x402 server is never contacted &mdash; there is no fee-grant, no subscription, no plan. One call on Windows (<code>connect()</code> from <code>blue-js-sdk/ai-path</code>); the native <code>sentinel-dvpncli</code> on macOS &amp; Linux.</p>
 
     <div class="callout callout-ok" style="max-width: 760px; margin: 0 auto 36px;">
       <div class="callout-title">&#10003; Verified live on mainnet</div>
-      <p>A funded test agent ran this end-to-end with no operator in the loop: it picked a US node, opened on-chain session <code>45433200</code>, paid <strong>40.19&nbsp;P2P</strong> for a 1&nbsp;GB V2Ray session, and the SDK confirmed the exit IP <code>104.252.19.187</code> through the tunnel &mdash; ~67&nbsp;s start to finish. That 40&nbsp;P2P is the live network median; the cheapest nodes run ~2&nbsp;P2P/GB.</p>
+      <p>A test agent ran this end-to-end with no operator in the loop: it picked a US node, opened on-chain session <code>45433200</code>, paid <strong>40.19&nbsp;P2P</strong> for a 1&nbsp;GB V2Ray session, and the SDK confirmed the exit IP <code>104.252.19.187</code> through the tunnel &mdash; ~67&nbsp;s start to finish. That 40&nbsp;P2P is the live network median; the cheapest nodes run ~2&nbsp;P2P/GB.</p>
     </div>
 
     <div class="flow-steps">
       <div class="flow-step">
-        <div class="step-num">0</div>
-        <div class="step-content">
-          <h4>Agent funds itself with P2P</h4>
-          <p>The agent needs P2P in its own wallet. One way, fully by API: market-buy P2P with USDT on an exchange and withdraw the tokens to the agent&rsquo;s Sentinel address. No human, no UI &mdash; a worked recipe is below.</p>
-          <span class="tag tag-chain">P2P &middot; udvpn</span>
-        </div>
-      </div>
-
-      <div class="flow-step">
         <div class="step-num">1</div>
         <div class="step-content">
           <h4>Own wallet, own keys</h4>
-          <p>The agent creates a Sentinel wallet and holds the mnemonic itself &mdash; the keys never leave the agent. <code>createWallet()</code> from <code>blue-js-sdk/ai-path</code> returns <code>{ address, mnemonic }</code>. It pays its own gas, bundled into the session transaction, from the P2P in step zero.</p>
+          <p>The agent creates a Sentinel wallet and holds the mnemonic itself &mdash; the keys never leave the agent. <code>createWallet()</code> from <code>blue-js-sdk/ai-path</code> returns <code>{ address, mnemonic }</code>. It pays its own gas, bundled into the session transaction, from its own P2P balance.</p>
           <span class="tag tag-agent">createWallet()</span>
         </div>
       </div>
@@ -1946,64 +1884,6 @@ section h3 {
           <span class="tag tag-agent">Agent &harr; Node</span>
         </div>
       </div>
-    </div>
-
-    <div style="margin-top: 48px;">
-      <h3 style="font-size: 13px; color: var(--accent); margin-bottom: 10px; letter-spacing: 1.5px; text-transform: uppercase;">
-        Step zero in practice &mdash; agent buys P2P on MEXC, fully by API
-      </h3>
-      <p class="desc" style="margin-bottom: 18px;">No human, no UI. The agent market-buys P2P with USDT on MEXC spot &mdash; the <code>P2PUSDT</code> pair is live (maker fee 0%, taker 0.05%, minimum market order 1 USDT) &mdash; then withdraws the tokens to its own Sentinel wallet. Three signed HTTP calls, no SDK required. Auth is an <code>X-MEXC-APIKEY</code> header plus an HMAC-SHA256 signature of the query string. (Any venue that lists P2P works &mdash; MEXC is just a worked example.)</p>
-
-      <!-- MEXC banner — click through to the live P2P/USDT market -->
-      <a href="https://www.mexc.com/exchange/P2P_USDT" target="_blank" rel="noopener" class="mexc-banner">
-        <img src="data:image/png;base64,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g6fEKVCveBvyll9zqs3vZhkXIdij5decavMbhlkAJlm8Cus5DBckUQB2RsocSm96actnGC5+7EiEYF8FYPlUw99rVh0UQHR1v4rMppe2vL1mNWBaugmJU6A/BNqQ0mh34E7enhwR8b/STUicAvmZASyG31WeNsvslB9wyheApfXybjZ7zak2T5tlBE6fyxeAl/+QbV5zqq2Gmep+E4kBR+Y6QMAnkXbK2e41p9rSkuhUuRfdCGUZmQKo/b71GkfUGvu8rJFoRKYA0upErTds2V76vE3q81S5F22J7bOQvBXiWLCtfGoeSSN+1u5CK4K/uVwBnIVphQfTuMrRf+63MEZ9CxAnkqttsjfDpSwwFW2zvRlCpSPoooAj1JO/priUPVOQLYCUBY5E22zvTRXr/vdJ36GOmTfgSPo2c/nboc9CU8Gp0Al+DX6uqKbvYvsWiYA3GltMg3SD3wziCNHg4xLT7c4H2t0o4kU8h82ndJzg1/CAXpEEAGdhaOKpCosiJrjAT9rdKOYSP8Ha0+QCTrUOfkB7R9hZGMLK1BzQ4AsOTG11zG0cZrjEAWDk/qyA0+tjQLELFgzisfK7A9SmYDXav3k65z9Wa/9bN6wYxD4ifoHsOwRmiDi6Xi9/eAZxeF0EPcFWpwg4MvFMJWifAi1Kq0MHkDslOsElnjzYgx9It0sEHAhmsRNc4pmVgx+wNAMsSg/UPS60SjTCLk7wPtgKg9rK/ebpkS0B7yxeV7FZAHPpP6UP4CVih+W7gAbAJ1zgneuQm8P8N0+PtG//bM6ABgEf8SdGln9z2wWwaBB7uMI+AvoIeIqIPaRz18WHJ80QMEPABFf4AwETXGBs+T/ANP7mRERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERES05i+Vhd12LSf8ZQAAAABJRU5ErkJggg==" alt="MEXC logo" width="38" height="38">
-        <span class="mexc-text">
-          <span class="mexc-title">Buy P2P on MEXC</span>
-          <span class="mexc-sub">Live spot market &middot; P2P/USDT &middot; mexc.com/exchange/P2P_USDT</span>
-        </span>
-        <span class="mexc-arrow">&rarr;</span>
-      </a>
-
-      <div class="code-block">
-        <div class="bar">
-          <div class="label">MEXC Spot API v3 &mdash; market-buy P2P, withdraw to the agent's Sentinel wallet</div>
-        </div>
-        <pre><code><span class="kw">import</span> { <span class="fn">createHmac</span> } <span class="kw">from</span> <span class="str">'node:crypto'</span><span class="op">;</span>
-
-<span class="kw">const</span> KEY <span class="op">=</span> process<span class="op">.</span>env<span class="op">.</span>MEXC_API_KEY<span class="op">;</span>      <span class="cm">// dashboard key with Spot Trade + Withdraw scopes</span>
-<span class="kw">const</span> SECRET <span class="op">=</span> process<span class="op">.</span>env<span class="op">.</span>MEXC_API_SECRET<span class="op">;</span>
-
-<span class="kw">async function</span> <span class="fn">mexc</span>(method<span class="op">,</span> path<span class="op">,</span> params <span class="op">=</span> {}) {
-  <span class="kw">const</span> qs <span class="op">=</span> <span class="kw">new</span> <span class="fn">URLSearchParams</span>({ <span class="op">...</span>params<span class="op">,</span> <span class="prop">timestamp</span><span class="op">:</span> Date<span class="op">.</span><span class="fn">now</span>() })<span class="op">.</span><span class="fn">toString</span>()<span class="op">;</span>
-  <span class="kw">const</span> sig <span class="op">=</span> <span class="fn">createHmac</span>(<span class="str">'sha256'</span><span class="op">,</span> SECRET)<span class="op">.</span><span class="fn">update</span>(qs)<span class="op">.</span><span class="fn">digest</span>(<span class="str">'hex'</span>)<span class="op">;</span>
-  <span class="kw">const</span> res <span class="op">=</span> <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">`https://api.mexc.com${path}?${qs}&amp;signature=${sig}`</span><span class="op">,</span> {
-    method<span class="op">,</span> <span class="prop">headers</span><span class="op">:</span> { <span class="str">'X-MEXC-APIKEY'</span><span class="op">:</span> KEY }<span class="op">,</span>
-  })<span class="op">;</span>
-  <span class="kw">return</span> res<span class="op">.</span><span class="fn">json</span>()<span class="op">;</span>
-}
-
-<span class="cm">// 1. Market-buy P2P with USDT &mdash; spend exactly 10 USDT (min 1, max 100k per order)</span>
-<span class="kw">await</span> <span class="fn">mexc</span>(<span class="str">'POST'</span><span class="op">,</span> <span class="str">'/api/v3/order'</span><span class="op">,</span> {
-  <span class="prop">symbol</span><span class="op">:</span> <span class="str">'P2PUSDT'</span><span class="op">,</span> <span class="prop">side</span><span class="op">:</span> <span class="str">'BUY'</span><span class="op">,</span> <span class="prop">type</span><span class="op">:</span> <span class="str">'MARKET'</span><span class="op">,</span> <span class="prop">quoteOrderQty</span><span class="op">:</span> <span class="str">'10'</span><span class="op">,</span>
-})<span class="op">;</span>
-
-<span class="cm">// 2. Read the filled P2P balance</span>
-<span class="kw">const</span> { balances } <span class="op">=</span> <span class="kw">await</span> <span class="fn">mexc</span>(<span class="str">'GET'</span><span class="op">,</span> <span class="str">'/api/v3/account'</span>)<span class="op">;</span>
-<span class="kw">const</span> amount <span class="op">=</span> balances<span class="op">.</span><span class="fn">find</span>(b <span class="op">=&gt;</span> b<span class="op">.</span>asset <span class="op">===</span> <span class="str">'P2P'</span>)<span class="op">.</span>free<span class="op">;</span>
-
-<span class="cm">// 3. Withdraw to the agent's own Sentinel wallet (wallet.address = 'sent1...')</span>
-<span class="kw">const</span> { networkList } <span class="op">=</span> (<span class="kw">await</span> <span class="fn">mexc</span>(<span class="str">'GET'</span><span class="op">,</span> <span class="str">'/api/v3/capital/config/getall'</span>))
-  <span class="op">.</span><span class="fn">find</span>(c <span class="op">=&gt;</span> c<span class="op">.</span>coin <span class="op">===</span> <span class="str">'P2P'</span>)<span class="op">;</span>
-<span class="kw">await</span> <span class="fn">mexc</span>(<span class="str">'POST'</span><span class="op">,</span> <span class="str">'/api/v3/capital/withdraw'</span><span class="op">,</span> {
-  <span class="prop">coin</span><span class="op">:</span> <span class="str">'P2P'</span><span class="op">,</span> <span class="prop">netWork</span><span class="op">:</span> networkList[<span class="num">0</span>]<span class="op">.</span>netWork<span class="op">,</span>
-  <span class="prop">address</span><span class="op">:</span> wallet<span class="op">.</span>address<span class="op">,</span> amount<span class="op">,</span>
-})<span class="op">;</span>
-
-<span class="cm">// P2P lands on-chain in the agent's wallet &mdash; gas + direct node payments covered.</span>
-<span class="cm">// At ~$0.00008/P2P, 10 USDT buys ~125,000 P2P: years of gas, weeks of bandwidth.</span></code></pre>
-      </div>
-
-      <p class="desc" style="font-size: 13px; margin-top: 14px; margin-bottom: 0;">One-time human setup: create the MEXC API key with <em>Spot Trade</em> + <em>Withdraw</em> permissions and allowlist the agent's <code>sent1...</code> withdrawal address. From then on the agent is self-funding &mdash; it can top up its own P2P whenever the balance runs low.</p>
     </div>
   </div>
 </section>
@@ -2029,7 +1909,7 @@ section h3 {
       </div>
       <pre><code><span class="kw">import</span> { <span class="fn">connect</span>, <span class="fn">disconnect</span>, <span class="fn">getBalance</span> } <span class="kw">from</span> <span class="str">'blue-js-sdk/ai-path'</span><span class="op">;</span>
 
-<span class="cm">// Agent already holds P2P (bought on MEXC by API &mdash; see step zero above).</span>
+<span class="cm">// Agent already holds P2P in its own Sentinel wallet.</span>
 <span class="cm">// getBalance &rarr; { address, udvpn, p2p, sufficient }</span>
 <span class="kw">const</span> bal <span class="op">=</span> <span class="kw">await</span> <span class="fn">getBalance</span>(process<span class="op">.</span>env<span class="op">.</span>SENTINEL_MNEMONIC)<span class="op">;</span>
 
@@ -2068,7 +1948,7 @@ section h3 {
       <pre><code><span class="cm">// The agent controls the full lifecycle &mdash; no x402, no operator:</span>
 <span class="cm">//</span>
 <span class="cm">// 1. Wallet:    Agent creates &amp; holds its Sentinel keys (mnemonic)</span>
-<span class="cm">// 2. Tokens:    Agent holds P2P (bought on an exchange by API &mdash; step zero above)</span>
+<span class="cm">// 2. Tokens:    Agent holds P2P in its own wallet</span>
 <span class="cm">// 3. Gas:       Agent pays its own Sentinel gas (bundled into the session TX)</span>
 <span class="cm">// 4. Node:      Agent queries nodes, picks by country / speed / price</span>
 <span class="cm">// 5. Session:   Agent starts &amp; ends sessions, paying the node at its</span>
@@ -2090,7 +1970,7 @@ section h3 {
 <section id="platforms">
   <div class="container">
     <h2>Same payment everywhere, connect differs by OS</h2>
-    <p class="desc">The chain payment &mdash; funding, node selection, <code>MsgStartSession</code> &mdash; is identical on every platform. Only the final tunnel bring-up differs. On Windows the SDK does it for you; on macOS &amp; Linux you use Sentinel&rsquo;s native CLI.</p>
+    <p class="desc">The chain payment &mdash; node selection, the per-GB payment, <code>MsgStartSession</code> &mdash; is identical on every platform. Only the final tunnel bring-up differs. On Windows the SDK does it for you; on macOS &amp; Linux you use Sentinel&rsquo;s native CLI.</p>
 
     <div class="code-block" style="margin-bottom: 24px;">
       <div class="bar">

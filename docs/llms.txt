@@ -13,7 +13,7 @@ Sentinel is a decentralized VPN: 1,500+ independent node operators across 70+ co
 - Two tunnel protocols: **WireGuard** (~30% of nodes, faster, full system route, needs admin once on Windows) and **V2Ray** (~70% of nodes, zero-admin userspace SOCKS5 proxy).
 - Session lifecycle is all peer-to-peer: direct HTTPS node probe → on-chain `MsgStartSession` (agent pays its own gas) → node confirms → WireGuard/V2Ray handshake → encrypted tunnel. No intermediary touches the payment, the session, or the traffic.
 
-Verified live on mainnet: a funded test agent, no operator in the loop, picked a US node, opened session **45433200**, paid **40.19 P2P** for a 1 GB V2Ray session, and the SDK confirmed exit IP **104.252.19.187** through the tunnel — ~67 s end to end.
+Verified live on mainnet: a test agent, no operator in the loop, picked a US node, opened session **45433200**, paid **40.19 P2P** for a 1 GB V2Ray session, and the SDK confirmed exit IP **104.252.19.187** through the tunnel — ~67 s end to end.
 
 ## Prerequisites
 
@@ -24,37 +24,9 @@ The agent needs exactly two things it manages itself:
 
 There is no operator to provision anything. No fee-grant, no subscription, no USDC.
 
-### Step zero — fund the wallet with P2P, fully by API
-
-The agent can self-fund with no human and no UI by market-buying P2P with USDT on an exchange that lists it, then withdrawing to its own `sent1...` address. MEXC is a worked example — the `P2PUSDT` spot pair is live (maker 0%, taker 0.05%, min market order 1 USDT). Three signed HTTP calls, auth = `X-MEXC-APIKEY` header + HMAC-SHA256 signature of the query string:
-
-```js
-import { createHmac } from 'node:crypto';
-const KEY = process.env.MEXC_API_KEY;       // Spot Trade + Withdraw scopes
-const SECRET = process.env.MEXC_API_SECRET;
-async function mexc(method, path, params = {}) {
-  const qs = new URLSearchParams({ ...params, timestamp: Date.now() }).toString();
-  const sig = createHmac('sha256', SECRET).update(qs).digest('hex');
-  const res = await fetch(`https://api.mexc.com${path}?${qs}&signature=${sig}`, {
-    method, headers: { 'X-MEXC-APIKEY': KEY },
-  });
-  return res.json();
-}
-// 1. Market-buy P2P with 10 USDT (min 1, max 100k per order)
-await mexc('POST', '/api/v3/order', { symbol: 'P2PUSDT', side: 'BUY', type: 'MARKET', quoteOrderQty: '10' });
-// 2. Read filled P2P balance
-const { balances } = await mexc('GET', '/api/v3/account');
-const amount = balances.find(b => b.asset === 'P2P').free;
-// 3. Withdraw to the agent's own Sentinel wallet
-const cfg = (await mexc('GET', '/api/v3/capital/config/getall')).find(c => c.coin === 'P2P');
-await mexc('POST', '/api/v3/capital/withdraw', { coin: 'P2P', netWork: cfg.networkList[0].netWork, address: wallet.address, amount });
-```
-
-One-time human setup: create the MEXC API key with *Spot Trade* + *Withdraw* permissions and allowlist the `sent1...` withdrawal address. At ~$0.00008/P2P, 10 USDT ≈ 125,000 P2P — years of gas, weeks of bandwidth. Any venue that lists P2P works.
-
 ## Agent flow
 
-1. Agent holds P2P in its own wallet (step zero above).
+1. Agent holds P2P in its own wallet.
 2. Agent reads the live node registry and picks by country / speed / price — or passes `country` and lets the SDK auto-select; or pins one with `nodeAddress`.
 3. Agent calls `connect()` → starts an on-chain session, pays the node directly in P2P at its posted per-GB rate, pays its own gas.
 4. Agent and node complete a WireGuard or V2Ray handshake — tunnel up. No middleman.
@@ -66,7 +38,7 @@ One-time human setup: create the MEXC API key with *Spot Trade* + *Withdraw* per
 ```js
 import { connect, disconnect, getBalance } from 'blue-js-sdk/ai-path';
 
-// Agent already holds P2P (bought on MEXC by API — step zero).
+// Agent already holds P2P in its own Sentinel wallet.
 const bal = await getBalance(process.env.SENTINEL_MNEMONIC); // { address, udvpn, p2p, sufficient }
 
 const vpn = await connect({
@@ -92,7 +64,7 @@ await disconnect(); // soft: session preserved on-chain, unused GB stays availab
 
 ## Platforms
 
-The chain payment (funding, node selection, `MsgStartSession`) is identical everywhere. Only the final tunnel bring-up differs.
+The chain payment (node selection, the per-GB payment, `MsgStartSession`) is identical everywhere. Only the final tunnel bring-up differs.
 
 - **Windows — zero admin via blue-js-sdk.** `protocol: 'v2ray'` needs no admin and no manual install: `connect()` auto-downloads the v2ray binary to `~/.sentinel-sdk/bin` on first use (~70% of nodes). WireGuard nodes (the other ~30%, faster) need admin ONCE for the MSI install + tunnel service; the SDK checks for admin BEFORE payment and refuses a WireGuard node when not elevated, so no P2P is wasted. Can't elevate? Stay on v2ray.
 - **macOS & Linux — native CLI (`sentinel-dvpncli`).** `go install github.com/sentinel-official/sentinel-dvpncli@latest` (Go 1.24+). The CLI does NOT bundle a tunnel — it shells out to `wg-quick` for WireGuard nodes, so install **wireguard-tools** first (`apt`/`brew`/`pacman`). Import the wallet (`printf '%s\n\n' "$AGENT_MNEMONIC" | sentinel-dvpncli keys add agent --keyring.backend test`), `sentinel-dvpncli tx session-start "$NODE_ADDRESS" --tx.from-name agent --keyring.backend test --rpc.chain-id sentinelhub-2 --output-format json`, then `sentinel-dvpncli connect "$SESSION_ID"`. Tear down with `tx session-cancel`. Only exception across all platforms: **Fedora** (SELinux blocks VPN interfaces).
