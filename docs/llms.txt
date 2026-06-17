@@ -9,7 +9,7 @@ This is the **autonomous** path. There is a separate **managed** path at https:/
 Sentinel is a decentralized VPN: 1,500+ independent node operators across 70+ countries, coordinated entirely on-chain. There is no central server, no account, no API key. The node registry IS the blockchain, protected by consensus.
 
 - Native coin: **P2P**, denom `udvpn`, where **1 P2P = 1,000,000 udvpn**. It pays for bandwidth, pays gas, is staked to secure the chain, and votes in governance.
-- Pricing is pay-as-you-go, **per gigabyte**, posted by each node. Protocol floor `100 udvpn/GB`. Live network median **~40 P2P/GB**; cheapest nodes **~2 P2P/GB**. Bandwidth revenue splits **80% node host / 20% stakers**.
+- Pricing is pay-as-you-go, posted by each node. Each node lists both a **per-gigabyte** rate and a **per-hour** rate (on-chain `gigabyte_prices` and `hourly_prices`); the agent picks the model per session — per-GB is the default. Protocol floor `100 udvpn/GB`. Live network median **~40 P2P/GB**; cheapest nodes **~2 P2P/GB**. Bandwidth revenue splits **80% node host / 20% stakers**.
 - Two tunnel protocols: **WireGuard** (~30% of nodes, faster, full system route, needs admin once on Windows) and **V2Ray** (~70% of nodes, zero-admin userspace SOCKS5 proxy).
 - Session lifecycle is all peer-to-peer: direct HTTPS node probe → on-chain `MsgStartSession` (agent pays its own gas) → node confirms → WireGuard/V2Ray handshake → encrypted tunnel. No intermediary touches the payment, the session, or the traffic.
 

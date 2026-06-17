@@ -1809,7 +1809,7 @@ section h3 {
         <div class="step-num">&#8644;</div>
         <div class="step-content">
           <h4>Pay-as-you-go, straight to the host</h4>
-          <p>Each node posts its own price. The autonomous agent pays that price <strong>per gigabyte</strong>, directly, for exactly what it uses &mdash; no plan, no tier, no minimum commitment. Bandwidth revenue splits <strong>80% to the node host / 20% to stakers</strong>, so the people serving traffic are the ones earning from it.</p>
+          <p>Each node posts both a <strong>per-gigabyte</strong> and a <strong>per-hour</strong> rate on-chain. The autonomous agent pays one of them directly, for exactly what it uses &mdash; per-GB by default &mdash; with no plan, no tier, no minimum commitment. Bandwidth revenue splits <strong>80% to the node host / 20% to stakers</strong>, so the people serving traffic are the ones earning from it.</p>
           <span class="tag tag-agent">Direct to node</span>
         </div>
       </div>
@@ -1871,7 +1871,7 @@ section h3 {
         <div class="step-num">2</div>
         <div class="step-content">
           <h4>Pick any node on the network</h4>
-          <p>The agent reads the live node registry and picks by country, speed, and price &mdash; or passes <code>country</code> and lets the SDK auto-select the best one. Every node posts its own <strong>per-gigabyte</strong> rate (median ~40&nbsp;P2P/GB, from ~2&nbsp;P2P on the cheapest); the agent pays exactly that &mdash; no plan, no tier.</p>
+          <p>The agent reads the live node registry and picks by country, speed, and price &mdash; or passes <code>country</code> and lets the SDK auto-select the best one. Every node posts its own <strong>per-gigabyte</strong> rate (median ~40&nbsp;P2P/GB, from ~2&nbsp;P2P on the cheapest) and a per-hour rate; the agent pays the per-GB rate by default &mdash; no plan, no tier.</p>
           <span class="tag tag-agent">Agent &rarr; Chain</span>
         </div>
       </div>
