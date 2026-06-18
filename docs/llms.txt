@@ -13,14 +13,14 @@ Sentinel is a decentralized VPN: 1,500+ independent node operators across 70+ co
 - Two tunnel protocols: **WireGuard** (~30% of nodes, faster, full system route, needs admin once on Windows) and **V2Ray** (~70% of nodes, zero-admin userspace SOCKS5 proxy).
 - Session lifecycle is all peer-to-peer: direct HTTPS node probe → on-chain `MsgStartSession` (agent pays its own gas) → node confirms → WireGuard/V2Ray handshake → encrypted tunnel. No intermediary touches the payment, the session, or the traffic.
 
-Verified live on mainnet: a test agent, no operator in the loop, picked a US node, opened session **45433200**, paid **40.19 P2P** for a 1 GB V2Ray session, and the SDK confirmed exit IP **104.252.19.187** through the tunnel — ~67 s end to end.
+Verified live on mainnet (a representative run; sessionId, exit IP and timing vary per run): a test agent, no operator in the loop, picked a US node, opened session **45943402**, paid **40.19 P2P** for a 1 GB V2Ray session, and the SDK confirmed exit IP **192.3.53.166** through the tunnel in about 35 s. The 40 P2P is right at the live network median; auto-select balances price against speed and uptime, so it will not always pick the ~2 P2P/GB cheapest node.
 
 ## Prerequisites
 
 The agent needs exactly two things it manages itself:
 
 1. **A Sentinel wallet it controls.** `createWallet()` from `blue-js-sdk/ai-path` returns `{ address, mnemonic }`. The mnemonic never leaves the agent.
-2. **P2P in that wallet** — covers both per-GB node payments and its own gas (gas is bundled into the session TX).
+2. **P2P in that wallet** — covers both per-GB node payments and its own gas (gas is bundled into the session TX). A fresh wallet starts empty: fund it by buying P2P on an exchange that lists it (e.g. MEXC) and withdrawing to the new address, or by bridging in.
 
 There is no operator to provision anything. No fee-grant, no subscription, no USDC.
 
@@ -48,11 +48,11 @@ const vpn = await connect({
   gigabytes: 1,           // default 1 — pay per-GB; or { preferHourly: true, hours: 24 }
 });
 // vpn → {
-//   sessionId: '45433200',        // on-chain session, paid by the agent
+//   sessionId: '45943402',        // on-chain session, paid by the agent
 //   protocol: 'v2ray',
-//   nodeAddress: 'sentnode1qjy6h...',
-//   ip: '104.252.19.187',         // exit IP, verified THROUGH the tunnel by the SDK
-//   socksPort: 1080,              // V2Ray: route traffic through this SOCKS5 port
+//   nodeAddress: 'sentnode1zjecy...',
+//   ip: '192.3.53.166',           // exit IP, verified THROUGH the tunnel by the SDK
+//   socksPort: 11375,             // dynamic — always read this from the result, never hardcode
 // }
 
 // ...do work over the tunnel...

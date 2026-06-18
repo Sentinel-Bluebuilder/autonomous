@@ -13,7 +13,7 @@
 
 <!-- JSON-LD: embed the full autonomous flow inline so a single HTML fetch is sufficient.
      Sources for the network facts below: sentinel.co, docs.sentinel.co/p2p-coin,
-     and the verified E2E in this repo (session 45433200, 40.19 P2P/GB, V2Ray). -->
+     and a representative verified E2E run (session 45943402, 40.19 P2P/GB, V2Ray). -->
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -55,7 +55,7 @@
       "connectWindows": "Zero-prereq path: pass protocol: 'v2ray' to connect() — no admin, no manual install. V2Ray is a userspace SOCKS5 proxy; connect() auto-downloads the v2ray binary to ~/.sentinel-sdk/bin on first use (no admin), covering ~70% of nodes. WireGuard nodes (the other ~30%, faster) need admin ONCE for the MSI install + tunnel service; the SDK checks admin BEFORE payment and refuses a WireGuard node when not elevated, so no funds are wasted.",
       "walletCreate": "createWallet() from blue-js-sdk/ai-path → { address, mnemonic }"
     },
-    "verifiedLive": { "sessionId": "45433200", "protocol": "v2ray", "paidP2PPerGB": 40.19, "gigabytes": 1, "exitIp": "104.252.19.187", "elapsedSeconds": 67, "network": "Sentinel mainnet" }
+    "verifiedLive": { "note": "representative run; sessionId, exitIp and timing vary per run", "sessionId": "45943402", "protocol": "v2ray", "paidP2PPerGB": 40.19, "gigabytes": 1, "exitIp": "192.3.53.166", "elapsedSeconds": 35, "network": "Sentinel mainnet" }
   }
 }
 </script>
@@ -247,7 +247,8 @@ nav .logo .brand-mark {
 
 nav .logo .brand-mark img { width: 100%; height: 100%; object-fit: contain; display: block; }
 
-nav .logo span { color: var(--accent); text-shadow: 0 0 12px rgba(0, 170, 255, 0.3); }
+nav .logo .wordmark { white-space: nowrap; }
+nav .logo .wm-accent { color: var(--accent); text-shadow: 0 0 12px rgba(0, 170, 255, 0.3); }
 
 /* ─── Logo / Brand-mark sizing ─── */
 .brand-mark-lg {
@@ -1598,7 +1599,7 @@ section h3 {
   <div class="inner">
     <div class="logo">
       <span class="brand-mark"><img src="assets/sentinel-shield.svg" alt="Sentinel"></span>
-      <span>auto</span>nomous
+      <span class="wordmark"><span class="wm-accent">auto</span>nomous</span>
     </div>
     <button class="nav-toggle" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="nav-links">
       <span class="nav-toggle-bar"></span>
@@ -1625,7 +1626,7 @@ section h3 {
     <ul class="hero-points fade-in" aria-label="What makes this autonomous">
       <li><strong>No operator, no middleman.</strong> No fee-grant, no subscription, no plan.</li>
       <li><strong>The agent owns everything.</strong> Its keys, its funds, its node choice, its gas.</li>
-      <li><strong>Runs on every platform.</strong> Windows, macOS &amp; Linux &mdash; see <a href="#platforms">Platforms</a>.</li>
+      <li><strong>Runs on Windows, macOS, and mainstream Linux.</strong> See <a href="#platforms">Platforms</a>.</li>
     </ul>
 
     <p class="subtitle subtitle-aside fade-in">Want zero prerequisites instead &mdash; just pay USDC and let an operator provision you? That&rsquo;s the managed path at <a href="https://x402.sentinel.co" target="_blank">x402.sentinel.co</a>. This site is the self-funded one.</p>
@@ -1658,7 +1659,7 @@ section h3 {
         <div class="uc-head">
           <span class="uc-dot"></span>
           <span class="uc-overline">agent dVPN &mdash; use cases</span>
-          <span class="uc-count">05</span>
+          <span class="uc-count">5 uses</span>
         </div>
         <div class="uc-row">
           <span class="uc-icon" aria-hidden="true">
@@ -1676,7 +1677,7 @@ section h3 {
           </span>
           <span class="uc-text">
             <span class="uc-title">Geo-restricted exchanges</span>
-            <span class="uc-desc">Trade on Hyperliquid and region-locked venues from anywhere.</span>
+            <span class="uc-desc">Reach region-locked trading venues from anywhere.</span>
           </span>
           <span class="uc-num">02</span>
         </div>
@@ -1721,13 +1722,13 @@ section h3 {
 <section id="compare">
   <div class="container">
     <h2>Two ways onto the same network</h2>
-    <p class="desc">Sentinel is one decentralized VPN network. There are two ways an AI agent can get onto it. <strong>This site is about the autonomous one</strong> &mdash; maximum sovereignty, the agent pays nodes directly. The managed one lives at <a href="https://x402.sentinel.co" target="_blank">x402.sentinel.co</a> &mdash; zero prerequisites, an operator provisions you for USDC. Pick by how much you want to hold yourself.</p>
+    <p class="desc">Sentinel is one decentralized VPN network. There are two ways an AI agent can get onto it. <strong>This site is about the autonomous one</strong>: maximum sovereignty, the agent pays nodes directly. The managed one lives at <a href="https://x402.sentinel.co" target="_blank">x402.sentinel.co</a>, where an operator provisions you for USDC with zero prerequisites. Pick by how much you want to hold yourself.</p>
 
     <div class="paths-grid">
       <div class="path-card active">
         <span class="path-badge live">This site</span>
         <h3>Autonomous &mdash; agent pays nodes directly</h3>
-        <p class="path-desc">The agent holds its own P2P, queries the on-chain node registry, and pays a node directly at its posted per-GB rate. No operator, no fee-grant, no subscription.</p>
+        <p class="path-desc">The agent holds its own P2P, queries the on-chain node registry, and pays a node directly at its posted per-GB rate. It settles straight with the node, with no operator or subscription in the loop.</p>
         <ul class="path-steps">
           <li>Agent creates a Sentinel wallet, holds its own keys</li>
           <li>Agent queries nodes, picks by country / speed / price</li>
@@ -1769,7 +1770,7 @@ section h3 {
     </div>
 
     <div class="current-note">
-      <strong>The honest trade-off:</strong> autonomous gives the agent total control and no third party in the loop &mdash; in return the agent must hold P2P and pay its own gas. Managed asks the agent only to hold USDC, but trusts an operator to provision the subscription (the tunnel itself is still direct, and the operator never sees traffic). Same Sentinel network, same WireGuard/V2Ray tunnels. An agent can use either, or both, and switch any time.
+      <strong>The honest trade-off:</strong> autonomous gives the agent total control and no third party in the loop. In return the agent must hold P2P and pay its own gas. Managed asks the agent only to hold USDC, but trusts an operator to provision the subscription (the tunnel itself is still direct, and the operator never sees traffic). Same Sentinel network, same WireGuard/V2Ray tunnels. An agent can use either, or both, and switch any time.
       Looking for the managed path? &rarr; <a href="https://x402.sentinel.co" target="_blank">x402.sentinel.co</a>.
     </div>
   </div>
@@ -1784,23 +1785,23 @@ section h3 {
 <section id="how-sentinel">
   <div class="container">
     <h2>A decentralized VPN, owned by no one</h2>
-    <p class="desc">The autonomous flow only makes sense once you understand what it&rsquo;s talking to. Sentinel is not a company&rsquo;s VPN with servers you trust &mdash; it&rsquo;s an open network of independent node operators, coordinated entirely on-chain. There is no central server to subpoena, no account to ban, no API key to revoke.</p>
+    <p class="desc">The autonomous flow only makes sense once you understand what it&rsquo;s talking to. Sentinel is not a company&rsquo;s VPN with servers you trust. It&rsquo;s an open network of independent node operators, coordinated entirely on-chain. There is no central server to subpoena, no account to ban, no API key to revoke.</p>
 
     <div class="flow-steps">
       <div class="flow-step">
         <div class="step-num">&#9737;</div>
         <div class="step-content">
           <h4>1,500+ independent nodes, 70+ countries</h4>
-          <p>Anyone can run a node and earn for the bandwidth they serve. Nodes register themselves on the Sentinel blockchain; the registry is the chain, protected by consensus &mdash; not a directory some operator controls. The agent reads that registry directly to discover and choose nodes.</p>
+          <p>Anyone can run a node and earn for the bandwidth they serve. Nodes register themselves on the Sentinel blockchain; the registry is the chain, protected by consensus, not a directory some operator controls. The agent reads that registry directly to discover and choose nodes.</p>
           <span class="tag tag-chain">On-chain registry</span>
         </div>
       </div>
 
       <div class="flow-step">
-        <div class="step-num">&#8383;</div>
+        <div class="step-num">&#164;</div>
         <div class="step-content">
           <h4>The P2P coin &mdash; the network&rsquo;s native unit</h4>
-          <p>P2P (denom <code>udvpn</code>, where <strong>1 P2P = 1,000,000 udvpn</strong>) is what everything runs on: it pays for bandwidth, pays gas for chain transactions, and is staked to secure the network and vote in governance. In the autonomous flow the agent holds P2P and spends it directly &mdash; no fiat rail, no operator in between.</p>
+          <p>P2P (denom <code>udvpn</code>, where <strong>1 P2P = 1,000,000 udvpn</strong>) is what everything runs on: it pays for bandwidth, pays gas for chain transactions, and is staked to secure the network and vote in governance. In the autonomous flow the agent holds P2P and spends it directly, with no fiat rail and no operator in between.</p>
           <span class="tag tag-chain">udvpn</span>
         </div>
       </div>
@@ -1818,7 +1819,7 @@ section h3 {
         <div class="step-num">&#36;</div>
         <div class="step-content">
           <h4>What a gigabyte actually costs</h4>
-          <p>The protocol floor is <code>100 udvpn/GB</code>. In practice the <strong>live network median is ~40 P2P/GB</strong>, and the cheapest nodes run <strong>~2 P2P/GB</strong>. Our verified test paid 40.19 P2P for a 1&nbsp;GB session &mdash; right at the median. Prices move with the market; treat these as live figures, not a quote.</p>
+          <p>The protocol floor is <code>100 udvpn/GB</code>. In practice the <strong>live network median is ~40 P2P/GB</strong>, and the cheapest nodes run <strong>~2 P2P/GB</strong>. Our verified test paid 40.19 P2P for a 1&nbsp;GB session, right at the median. Auto-select balances price against speed and uptime, not price alone, so it won&rsquo;t always pick the cheapest node; an agent that wants the floor can sort by price and choose it explicitly. Prices move with the market; treat these as live figures, not a quote.</p>
           <span class="tag tag-chain">~40 P2P/GB median</span>
         </div>
       </div>
@@ -1850,11 +1851,11 @@ section h3 {
 <section id="flow">
   <div class="container">
     <h2>Three steps, no operator</h2>
-    <p class="desc">Everything the agent does, it does itself. It holds its own keys, picks its own node, pays that node directly, and handshakes peer-to-peer &mdash; no fee-grant, no subscription, no plan. One call on Windows (<code>connect()</code> from <code>blue-js-sdk/ai-path</code>); the native <code>sentinel-dvpncli</code> on macOS &amp; Linux.</p>
+    <p class="desc">Everything the agent does, it does itself. It holds its own keys, picks its own node, pays that node directly, and handshakes peer-to-peer. Nothing is provisioned for it and no fee grant stands behind it. One call on Windows (<code>connect()</code> from <code>blue-js-sdk/ai-path</code>); the native <code>sentinel-dvpncli</code> on macOS &amp; Linux.</p>
 
     <div class="callout callout-ok" style="max-width: 760px; margin: 0 auto 36px;">
       <div class="callout-title">&#10003; Verified live on mainnet</div>
-      <p>A test agent ran this end-to-end with no operator in the loop: it picked a US node, opened on-chain session <code>45433200</code>, paid <strong>40.19&nbsp;P2P</strong> for a 1&nbsp;GB V2Ray session, and the SDK confirmed the exit IP <code>104.252.19.187</code> through the tunnel &mdash; ~67&nbsp;s start to finish. That 40&nbsp;P2P is the live network median; the cheapest nodes run ~2&nbsp;P2P/GB.</p>
+      <p>A representative run: a test agent ran this end-to-end with no operator in the loop. It picked a US node (Seattle), opened on-chain session <code>45943402</code>, paid <strong>40.19&nbsp;P2P</strong> for a 1&nbsp;GB V2Ray session, and the SDK confirmed the exit IP <code>192.3.53.166</code> through the tunnel in about 35&nbsp;s. Session ID, node, exit IP, and timing vary run to run; that 40&nbsp;P2P is right at the live network median, with the cheapest nodes around ~2&nbsp;P2P/GB.</p>
     </div>
 
     <div class="flow-steps">
@@ -1862,7 +1863,7 @@ section h3 {
         <div class="step-num">1</div>
         <div class="step-content">
           <h4>Own wallet, own keys</h4>
-          <p>The agent creates a Sentinel wallet and holds the mnemonic itself &mdash; the keys never leave the agent. <code>createWallet()</code> from <code>blue-js-sdk/ai-path</code> returns <code>{ address, mnemonic }</code>. It pays its own gas, bundled into the session transaction, from its own P2P balance.</p>
+          <p>The agent creates a Sentinel wallet and holds the mnemonic itself, so the keys never leave the agent. <code>createWallet()</code> from <code>blue-js-sdk/ai-path</code> returns <code>{ address, mnemonic }</code>. A fresh wallet starts empty, so the agent funds it with P2P first: buy P2P on an exchange that lists it (e.g. MEXC) and withdraw to the new address, or bridge in. From then on it pays its own gas, bundled into the session transaction, from that balance.</p>
           <span class="tag tag-agent">createWallet()</span>
         </div>
       </div>
@@ -1880,7 +1881,7 @@ section h3 {
         <div class="step-num">3</div>
         <div class="step-content">
           <h4>Pay the node, handshake directly</h4>
-          <p>The agent starts the session, pays the node in P2P at its posted rate, then handshakes directly over WireGuard (full system route) or V2Ray (zero-admin SOCKS5 proxy). No middleman in the payment or the tunnel. <code>connect()</code> registers cleanup handlers, so a crashed process never strands the tunnel.</p>
+          <p>The agent starts the session, pays the node in P2P at its posted rate, then handshakes directly over WireGuard (full system route) or V2Ray (zero-admin SOCKS5 proxy). No middleman in the payment or the tunnel. <code>connect()</code> registers cleanup handlers, so a crashed process never strands the tunnel. <code>disconnect()</code> is soft: it tears down the local tunnel but leaves the on-chain session and any unused gigabytes claimable, so the agent can reconnect without paying again.</p>
           <span class="tag tag-agent">Agent &harr; Node</span>
         </div>
       </div>
@@ -1924,11 +1925,11 @@ section h3 {
 })<span class="op">;</span>
 
 <span class="cm">// vpn &rarr; {</span>
-<span class="cm">//   sessionId: '45433200',          // on-chain session, paid by the agent</span>
+<span class="cm">//   sessionId: '45943402',          // on-chain session, paid by the agent</span>
 <span class="cm">//   protocol: 'v2ray',</span>
-<span class="cm">//   nodeAddress: 'sentnode1qjy6h...',</span>
-<span class="cm">//   ip: '104.252.19.187',           // exit IP, verified THROUGH the tunnel by the SDK</span>
-<span class="cm">//   socksPort: 1080,                // V2Ray: route traffic through this SOCKS5 port</span>
+<span class="cm">//   nodeAddress: 'sentnode1zjecy...',</span>
+<span class="cm">//   ip: '192.3.53.166',             // exit IP, verified THROUGH the tunnel by the SDK</span>
+<span class="cm">//   socksPort: 11375,               // dynamic &mdash; always read this from the result, never hardcode</span>
 <span class="cm">// }</span>
 
 <span class="cm">// ...do work over the tunnel...</span>
@@ -1959,7 +1960,7 @@ section h3 {
 <span class="cm">// connect() registers cleanup handlers automatically &mdash; on crash or exit it</span>
 <span class="cm">// tears the tunnel down so a dropped process never strands your connection.</span>
 <span class="cm">//</span>
-<span class="cm">// No operator, no fee-grant, no subscription. Ships in blue-js-sdk today.</span></code></pre>
+<span class="cm">// The agent settles directly with the node. Ships in blue-js-sdk today.</span></code></pre>
     </div>
   </div>
 </section>
@@ -2018,7 +2019,7 @@ sentinel-dvpncli connect <span class="str">"$SESSION_ID"</span>
 <section id="security">
   <div class="container">
     <h2>Zero trust by construction</h2>
-    <p class="desc">The autonomous flow removes the operator entirely. There is no one to trust with provisioning, no one holding a fee grant, no one in the payment path. The only parties are the agent and the node it chose &mdash; and even the node never sees the agent&rsquo;s keys.</p>
+    <p class="desc">The autonomous flow removes the operator entirely. There is no one to trust with provisioning, no one holding a fee grant, no one in the payment path. The only parties are the agent and the node it chose, and even the node never sees the agent&rsquo;s keys.</p>
 
     <div class="security-grid">
       <div class="security-item">
@@ -2027,7 +2028,7 @@ sentinel-dvpncli connect <span class="str">"$SESSION_ID"</span>
       </div>
       <div class="security-item">
         <h4>The tunnel is always agent-to-node</h4>
-        <p>The WireGuard / V2Ray handshake is direct between the agent and the node it picked. Nothing sits in the middle of the tunnel &mdash; there is no middleman to see traffic, encryption keys, or destinations.</p>
+        <p>The WireGuard / V2Ray handshake is direct between the agent and the node it picked. Nothing sits in the middle of the tunnel. There is no middleman to see traffic, encryption keys, or destinations.</p>
       </div>
       <div class="security-item">
         <h4>No operator, no fee grant, no plan</h4>
@@ -2039,7 +2040,7 @@ sentinel-dvpncli connect <span class="str">"$SESSION_ID"</span>
       </div>
       <div class="security-item">
         <h4>Decentralized by design</h4>
-        <p>The node registry is the Sentinel blockchain, protected by consensus &mdash; not a directory any company controls. There is no central server to compromise, subpoena, or shut down.</p>
+        <p>The node registry is the Sentinel blockchain, protected by consensus, not a directory any company controls. There is no central server to compromise, subpoena, or shut down.</p>
       </div>
       <div class="security-item">
         <h4>No PII, anywhere</h4>
@@ -2058,7 +2059,7 @@ sentinel-dvpncli connect <span class="str">"$SESSION_ID"</span>
     <a href="https://sentinel.co" target="_blank">Sentinel Network</a>
     <a href="https://docs.sentinel.co" target="_blank">Sentinel Docs</a>
   </div>
-  <p>Autonomous &mdash; the agent holds its own P2P and pays nodes directly. No operator, no middleman. Built on <a href="https://sentinel.co" target="_blank">Sentinel</a>.</p>
+  <p>Ready to wire it up? Start with <code>npm install blue-js-sdk</code> and the <a href="#code">connect() example</a> above. Built on <a href="https://sentinel.co" target="_blank">Sentinel</a>.</p>
 </footer>
 
 
