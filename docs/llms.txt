@@ -1,6 +1,6 @@
 # Autonomous (Sentinel)
 
-> Fully self-funded private internet for AI agents. The agent holds its own P2P, picks any Sentinel node, and pays that node directly per gigabyte. No operator, no fee-grant, no subscription, no HTTP server in the middle — the x402 server is never contacted. One import, one `connect()` call from `blue-js-sdk/ai-path`. Maximum sovereignty: the agent controls keys, gas, node selection, and payment.
+> Fully self-funded private internet for AI agents. The agent holds its own P2P, picks any Sentinel node, and pays that node directly per gigabyte. No operator, no fee-grant, no subscription, no HTTP server in the middle. One import, one `connect()` call from `blue-js-sdk/ai-path`. Maximum sovereignty: the agent controls keys, gas, node selection, and payment.
 
 This is the **autonomous** path. There is a separate **managed** path at https://x402.sentinel.co where the agent pays USDC on Base and an operator provisions a Sentinel subscription + gas grant (zero prerequisites beyond USDC). Same network, same direct WireGuard/V2Ray tunnels. Use autonomous when you want zero intermediaries and are willing to hold P2P + pay your own gas; use managed when you only want to hold USDC. See https://x402.sentinel.co/llms.txt for that path.
 

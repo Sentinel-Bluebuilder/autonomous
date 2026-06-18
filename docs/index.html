@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Autonomous — Fully Self-Funded Private Internet for AI Agents</title>
-<meta name="description" content="An AI agent holds its own P2P, picks any Sentinel node, and pays it directly per-GB. No operator, no middleman, no x402 server. Fully autonomous private internet on Sentinel's decentralized network.">
+<meta name="description" content="An AI agent holds its own P2P, picks any Sentinel node, and pays it directly per-GB. No operator, no middleman. Fully autonomous private internet on Sentinel's decentralized network.">
 
 <!-- Agent discovery: machine-readable AI summary -->
 <link rel="alternate" type="text/plain" href="https://autonomous.sentinel.co/llms.txt" title="Autonomous flow summary for LLMs (llmstxt.org)">
@@ -19,7 +19,7 @@
   "@context": "https://schema.org",
   "@type": "HowTo",
   "name": "Autonomous Sentinel dVPN connection for AI agents",
-  "description": "An AI agent holds its own P2P, picks any node on Sentinel's decentralized network, pays the node directly per-GB, and handshakes peer-to-peer. The x402 server is never contacted.",
+  "description": "An AI agent holds its own P2P, picks any node on Sentinel's decentralized network, pays the node directly per-GB, and handshakes peer-to-peer. No operator, no middleman.",
   "totalTime": "PT2M",
   "tool": [
     { "@type": "HowToTool", "name": "blue-js-sdk/ai-path (connect, disconnect, getBalance, createWallet)" },
@@ -32,7 +32,7 @@
   ],
   "autonomous": {
     "model": "self-funded, pay-as-you-go, direct to the node",
-    "operator": "none — the x402 server plays no part",
+    "operator": "none",
     "packages": { "sentinel": "blue-js-sdk/ai-path" },
     "connect": "connect({ mnemonic, country?, protocol: 'v2ray'|'wireguard', gigabytes }) → { sessionId, protocol, nodeAddress, ip, socksPort }",
     "getBalance": "getBalance(mnemonic) → { address, udvpn, p2p, sufficient }",
@@ -1623,7 +1623,7 @@ section h3 {
     <p class="subtitle subtitle-lead fade-in">The agent holds its own P2P, picks any node on Sentinel's decentralized network, and pays it directly per gigabyte &mdash; private, end to end on-chain.</p>
 
     <ul class="hero-points fade-in" aria-label="What makes this autonomous">
-      <li><strong>No operator, no middleman.</strong> The x402 server is never contacted.</li>
+      <li><strong>No operator, no middleman.</strong> No fee-grant, no subscription, no plan.</li>
       <li><strong>The agent owns everything.</strong> Its keys, its funds, its node choice, its gas.</li>
       <li><strong>Runs on every platform.</strong> Windows, macOS &amp; Linux &mdash; see <a href="#platforms">Platforms</a>.</li>
     </ul>
@@ -1727,7 +1727,7 @@ section h3 {
       <div class="path-card active">
         <span class="path-badge live">This site</span>
         <h3>Autonomous &mdash; agent pays nodes directly</h3>
-        <p class="path-desc">The agent holds its own P2P, queries the on-chain node registry, and pays a node directly at its posted per-GB rate. No operator, no fee-grant, no subscription. The payment and the tunnel are both peer-to-peer &mdash; nothing in the middle.</p>
+        <p class="path-desc">The agent holds its own P2P, queries the on-chain node registry, and pays a node directly at its posted per-GB rate. No operator, no fee-grant, no subscription.</p>
         <ul class="path-steps">
           <li>Agent creates a Sentinel wallet, holds its own keys</li>
           <li>Agent queries nodes, picks by country / speed / price</li>
@@ -1850,7 +1850,7 @@ section h3 {
 <section id="flow">
   <div class="container">
     <h2>Three steps, no operator</h2>
-    <p class="desc">Everything the agent does, it does itself. It holds its own keys, picks its own node, pays that node directly, and handshakes peer-to-peer. The x402 server is never contacted &mdash; there is no fee-grant, no subscription, no plan. One call on Windows (<code>connect()</code> from <code>blue-js-sdk/ai-path</code>); the native <code>sentinel-dvpncli</code> on macOS &amp; Linux.</p>
+    <p class="desc">Everything the agent does, it does itself. It holds its own keys, picks its own node, pays that node directly, and handshakes peer-to-peer &mdash; no fee-grant, no subscription, no plan. One call on Windows (<code>connect()</code> from <code>blue-js-sdk/ai-path</code>); the native <code>sentinel-dvpncli</code> on macOS &amp; Linux.</p>
 
     <div class="callout callout-ok" style="max-width: 760px; margin: 0 auto 36px;">
       <div class="callout-title">&#10003; Verified live on mainnet</div>
@@ -1880,7 +1880,7 @@ section h3 {
         <div class="step-num">3</div>
         <div class="step-content">
           <h4>Pay the node, handshake directly</h4>
-          <p>The agent starts the session, pays the node in P2P at its posted rate, then handshakes directly over WireGuard (full system route) or V2Ray (zero-admin SOCKS5 proxy). No middleman in the payment or the tunnel &mdash; the x402 server is never contacted. <code>connect()</code> registers cleanup handlers, so a crashed process never strands the tunnel.</p>
+          <p>The agent starts the session, pays the node in P2P at its posted rate, then handshakes directly over WireGuard (full system route) or V2Ray (zero-admin SOCKS5 proxy). No middleman in the payment or the tunnel. <code>connect()</code> registers cleanup handlers, so a crashed process never strands the tunnel.</p>
           <span class="tag tag-agent">Agent &harr; Node</span>
         </div>
       </div>
@@ -1913,7 +1913,7 @@ section h3 {
 <span class="cm">// getBalance &rarr; { address, udvpn, p2p, sufficient }</span>
 <span class="kw">const</span> bal <span class="op">=</span> <span class="kw">await</span> <span class="fn">getBalance</span>(process<span class="op">.</span>env<span class="op">.</span>SENTINEL_MNEMONIC)<span class="op">;</span>
 
-<span class="cm">// Pick any Sentinel node and pay it directly in P2P. No x402, no operator.</span>
+<span class="cm">// Pick any Sentinel node and pay it directly in P2P.</span>
 <span class="cm">// protocol: 'v2ray' = zero admin on Windows; the binary auto-downloads (~70% of nodes).</span>
 <span class="cm">// Omit country to let the SDK pick the best node anywhere; pass nodeAddress to pin one.</span>
 <span class="kw">const</span> vpn <span class="op">=</span> <span class="kw">await</span> <span class="fn">connect</span>({
@@ -1945,7 +1945,7 @@ section h3 {
       <div class="bar">
         <div class="label">What the agent manages &mdash; the full autonomous lifecycle</div>
       </div>
-      <pre><code><span class="cm">// The agent controls the full lifecycle &mdash; no x402, no operator:</span>
+      <pre><code><span class="cm">// The agent controls the full lifecycle:</span>
 <span class="cm">//</span>
 <span class="cm">// 1. Wallet:    Agent creates &amp; holds its Sentinel keys (mnemonic)</span>
 <span class="cm">// 2. Tokens:    Agent holds P2P in its own wallet</span>
