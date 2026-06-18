@@ -50,9 +50,9 @@
       "lcdFallbacks": ["https://lcd.sentinel.co", "https://sentinel-api.polkachu.com", "https://api.sentinel.quokkastake.io", "https://sentinel-rest.publicnode.com", "https://api.sentinel.suchnode.net"],
       "network": "1,500+ independent nodes across 70+ countries; on-chain node registry, no central servers",
       "pricing": "Per-GB, paid directly to the node. Live network median ~40 P2P/GB, cheapest ~2 P2P/GB; protocol floor 100 udvpn/GB. Revenue split: 80% node host / 20% stakers.",
-      "platforms": "Connect step differs by OS; the chain payment is identical everywhere.",
-      "connectMacLinux": "Native CLI sentinel-dvpncli (go install github.com/sentinel-official/sentinel-dvpncli@latest, needs Go 1.24+). The CLI does NOT bundle a tunnel: it shells out to wg-quick (install wireguard-tools: apt/brew/pacman) for WireGuard nodes, or v2ray on PATH for V2Ray nodes. sudo is needed to bring a WireGuard interface up. Exception: Fedora (SELinux blocks VPNs).",
-      "connectWindows": "Zero-prereq path: pass protocol: 'v2ray' to connect() — no admin, no manual install. V2Ray is a userspace SOCKS5 proxy; connect() auto-downloads the v2ray binary to ~/.sentinel-sdk/bin on first use (no admin), covering ~70% of nodes. WireGuard nodes (the other ~30%, faster) need admin ONCE for the MSI install + tunnel service; the SDK checks admin BEFORE payment and refuses a WireGuard node when not elevated, so no funds are wasted.",
+      "platforms": "The chain payment and the V2Ray JS connect() path are identical on every OS. Only WireGuard's final bring-up differs.",
+      "connectV2Ray": "Cross-platform, zero admin (Windows, macOS, Linux). Pass protocol: 'v2ray' to connect() from blue-js-sdk/ai-path — the same call runs on all three OSes. V2Ray is a userspace SOCKS5 proxy; connect() auto-downloads the v2ray binary to ~/.sentinel-sdk/bin on first use (no admin), with SHA256-verified binaries for win32, darwin x64/arm64 and linux x64/arm64, covering ~70% of nodes. Add systemProxy: true for whole-device routing (SDK sets the OS proxy: Windows registry / macOS networksetup / Linux gsettings; on headless or non-GNOME Linux that step is a no-op but per-request socksPort routing still works). WireGuard nodes (the other ~30%, faster) need admin ONCE on Windows for the MSI install + tunnel service; the SDK checks admin BEFORE payment and refuses a WireGuard node when not elevated, so no funds are wasted.",
+      "connectNativeCli": "Alternative for WireGuard nodes or Node-less environments — NOT required for V2Ray (the JS connect() covers that on every OS). Native CLI sentinel-dvpncli (go install github.com/sentinel-official/sentinel-dvpncli@latest, needs Go 1.24+). The CLI does NOT bundle a tunnel: it shells out to wg-quick (install wireguard-tools: apt/brew/pacman) for WireGuard nodes, or v2ray on PATH for V2Ray nodes. sudo is needed to bring a WireGuard interface up. Exception: Fedora (SELinux blocks VPNs).",
       "walletCreate": "createWallet() from blue-js-sdk/ai-path → { address, mnemonic }"
     },
     "verifiedLive": { "note": "representative run; sessionId, exitIp and timing vary per run", "sessionId": "45943402", "protocol": "v2ray", "paidP2PPerGB": 40.19, "gigabytes": 1, "exitIp": "192.3.53.166", "elapsedSeconds": 35, "network": "Sentinel mainnet" }
@@ -1638,13 +1638,13 @@ section h3 {
         </span>
         <span class="os-label">Windows <span class="os-status">live</span></span>
       </div>
-      <div class="os-chip live" title="Live — native CLI connect; install wireguard-tools (wg-quick) first">
+      <div class="os-chip live" title="Live — V2Ray via the same JS connect() (binary auto-downloads); native CLI is the WireGuard alternative">
         <span class="os-logo" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.4 1.3c.1 1.1-.3 2.2-1 3-.6.8-1.7 1.4-2.7 1.4-.2-1.1.3-2.2.9-2.9.8-.9 2-1.5 2.8-1.5Zm3.6 16.4c-.5 1.2-.8 1.7-1.4 2.8-.9 1.5-2.2 3.4-3.9 3.5-1.5 0-1.8-.9-3.8-.9-1.9 0-2.3.9-3.8.9-1.6-.1-2.9-1.8-3.8-3.3-2.5-4.3-2.7-9.4-1.2-12.1 1.1-1.9 2.8-3.1 4.4-3.1 1.5 0 2.5.9 3.8.9 1.3 0 2.1-.9 3.9-.9 1.4 0 3 .8 4.1 2.2-3.6 2-3 7.2 1.7 10Z"/></svg>
         </span>
         <span class="os-label">macOS <span class="os-status">live</span></span>
       </div>
-      <div class="os-chip live" title="Live — native CLI connect; install wireguard-tools first (except Fedora: SELinux blocks VPNs)">
+      <div class="os-chip live" title="Live — V2Ray via the same JS connect() (binary auto-downloads); native CLI is the WireGuard alternative (except Fedora: SELinux blocks VPNs)">
         <span class="os-logo" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.5 2c-2 0-3.3 1.6-3.3 4 0 1 .2 1.9.4 2.5-.7.5-1.3 1.4-1.8 2.6-.7 1.6-1 3.8-1.7 5.2-.5 1-1.5 1.5-2 2.2-.4.4-.5 1.3.4 1.6.7.2 1.3-.2 1.9-.6.4-.3.9-.4 1.2-.4.4.1.5.5.6 1 .1 1.3 1 2.2 2.9 2.4 1.8.2 4-.4 5.7-.4 1 0 1.7.1 2.3.1.6 0 1-.5 1-1 0-.5-.4-.9-.9-1.3-1.1-1-1.4-2.3-1.8-4-.4-1.6-.9-3.5-2.3-4.7.4-.8.6-1.7.6-2.7 0-2.3-1.3-4-3.2-4Zm-1 3.3c.4 0 .6.5.6 1s-.3 1-.6 1-.7-.5-.7-1 .3-1 .7-1Zm2.1 0c.4 0 .6.5.6 1s-.3 1-.6 1-.7-.5-.7-1 .3-1 .7-1Z"/></svg>
         </span>
@@ -1851,7 +1851,7 @@ section h3 {
 <section id="flow">
   <div class="container">
     <h2>Three steps, no operator</h2>
-    <p class="desc">Everything the agent does, it does itself. It holds its own keys, picks its own node, pays that node directly, and handshakes peer-to-peer. Nothing is provisioned for it and no fee grant stands behind it. One call on Windows (<code>connect()</code> from <code>blue-js-sdk/ai-path</code>); the native <code>sentinel-dvpncli</code> on macOS &amp; Linux.</p>
+    <p class="desc">Everything the agent does, it does itself. It holds its own keys, picks its own node, pays that node directly, and handshakes peer-to-peer. Nothing is provisioned for it and no fee grant stands behind it. One call on every OS &mdash; <code>connect()</code> from <code>blue-js-sdk/ai-path</code> runs the V2Ray tunnel the same way on Windows, macOS and Linux (the binary auto-downloads for each). The native <code>sentinel-dvpncli</code> is only the alternative for WireGuard nodes or Node-less environments.</p>
 
     <div class="callout callout-ok" style="max-width: 760px; margin: 0 auto 36px;">
       <div class="callout-title">&#10003; Verified live on mainnet</div>
@@ -1987,29 +1987,35 @@ section h3 {
 <!-- ─── Platforms ─── -->
 <section id="platforms">
   <div class="container">
-    <h2>Same payment everywhere, connect differs by OS</h2>
-    <p class="desc">The chain payment &mdash; node selection, the per-GB payment, <code>MsgStartSession</code> &mdash; is identical on every platform. Only the final tunnel bring-up differs. On Windows the SDK does it for you; on macOS &amp; Linux you use Sentinel&rsquo;s native CLI.</p>
+    <h2>Same payment everywhere, same V2Ray connect on every OS</h2>
+    <p class="desc">The chain payment &mdash; node selection, the per-GB payment, <code>MsgStartSession</code> &mdash; is identical on every platform, and so is the V2Ray JS <code>connect()</code> path. The same call below runs on Windows, macOS and Linux: <code>connect({ protocol: 'v2ray' })</code> auto-downloads the v2ray binary for each OS (the SDK ships SHA256-verified binaries for win32, darwin x64/arm64 and linux x64/arm64). The native CLI is only an alternative for WireGuard nodes or Node-less environments.</p>
 
     <div class="code-block" style="margin-bottom: 24px;">
       <div class="bar">
-        <div class="label">Windows &mdash; zero admin via blue-js-sdk (JS tunnel)</div>
+        <div class="label">All platforms &mdash; zero admin via blue-js-sdk (V2Ray JS tunnel)</div>
       </div>
-      <pre><code><span class="cm">// protocol: 'v2ray' = zero admin, zero manual install. connect() auto-downloads</span>
-<span class="cm">// the v2ray binary to ~/.sentinel-sdk/bin on first use (no admin), covering ~70%</span>
-<span class="cm">// of nodes. setup() is optional &mdash; it just pre-fetches the binary.</span>
+      <pre><code><span class="cm">// protocol: 'v2ray' = zero admin, zero manual install on Windows, macOS AND Linux.</span>
+<span class="cm">// connect() auto-downloads the v2ray binary to ~/.sentinel-sdk/bin on first use</span>
+<span class="cm">// (no admin) for whichever OS you're on, covering ~70% of nodes. This exact call</span>
+<span class="cm">// works as-is on all three. setup() is optional &mdash; it just pre-fetches the binary.</span>
 <span class="kw">const</span> vpn <span class="op">=</span> <span class="kw">await</span> <span class="fn">connect</span>({ <span class="prop">mnemonic</span><span class="op">,</span> <span class="prop">country</span><span class="op">:</span> <span class="str">'US'</span><span class="op">,</span> <span class="prop">protocol</span><span class="op">:</span> <span class="str">'v2ray'</span><span class="op">,</span> <span class="prop">gigabytes</span><span class="op">:</span> <span class="num">1</span> })<span class="op">;</span>
 
-<span class="cm">// WireGuard nodes (the other ~30%, faster) need admin ONCE for the MSI install +</span>
-<span class="cm">// tunnel service. The SDK checks for admin BEFORE payment and refuses a WireGuard</span>
-<span class="cm">// node when not elevated &mdash; so no P2P is ever wasted. Can't elevate? Stay on v2ray.</span></code></pre>
+<span class="cm">// Whole device? Add systemProxy: true &mdash; the SDK sets the OS proxy (Windows registry /</span>
+<span class="cm">// macOS networksetup / Linux gsettings). On headless or non-GNOME Linux that step is a</span>
+<span class="cm">// no-op, but per-request socksPort routing still works there.</span>
+<span class="cm">// WireGuard nodes (the other ~30%, faster) need admin ONCE on Windows for the MSI install</span>
+<span class="cm">// + tunnel service. The SDK checks for admin BEFORE payment and refuses a WireGuard node</span>
+<span class="cm">// when not elevated &mdash; so no P2P is ever wasted. Can't elevate? Stay on v2ray.</span></code></pre>
     </div>
 
     <div class="code-block" style="margin-bottom: 24px;">
       <div class="bar">
-        <div class="label">macOS &amp; Linux &mdash; native CLI (sentinel-dvpncli)</div>
+        <div class="label">Native CLI &mdash; the WireGuard / Node-less alternative (sentinel-dvpncli)</div>
       </div>
-      <pre><code><span class="cm">// The CLI does NOT bundle a tunnel: it shells out to wg-quick for WireGuard nodes,</span>
-<span class="cm">// so install wireguard-tools first (apt / brew / pacman). Needs Go 1.24+ to build.</span>
+      <pre><code><span class="cm">// Not required for V2Ray (the JS connect() above covers that on every OS). Use this</span>
+<span class="cm">// only for WireGuard nodes or Node-less environments. The CLI does NOT bundle a tunnel:</span>
+<span class="cm">// it shells out to wg-quick for WireGuard nodes, so install wireguard-tools first</span>
+<span class="cm">// (apt / brew / pacman). Needs Go 1.24+ to build.</span>
 <span class="cm">// CLI: https://github.com/sentinel-official/sentinel-dvpncli</span>
 go install github.com/sentinel-official/sentinel-dvpncli@latest
 
